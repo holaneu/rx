@@ -1,6 +1,3 @@
-private/
-test/
-
 # Python specific files
 __pycache__/
 *.pyc
@@ -11,6 +8,7 @@ venv/
 .env
 
 # Logs
+logs/
 *.log
 
 # Dependency files
@@ -24,5 +22,17 @@ Thumbs.db
 # IDE specific files
 .idea/
 .vscode/
-*.code-workspace
-.code-workspace
+#*.code-workspace
+#.code-workspace
+
+# Private and backups
+_archive/
+private/
+test/
+
+# Local user data
+user/
+user.zip
+user_data/
+user_data.zip
+# !user/.gitkeep

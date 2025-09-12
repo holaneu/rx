@@ -1,0 +1,36 @@
+#result-box-logs,
+#result-box-responses,
+#result-box-interactions,
+#result-box-messages {
+  display: none;  /* Hide by default */
+  margin-top: 20px;
+}
+
+#result-box-logs:has(#logs:not(:empty)),
+#result-box-responses:has(#responses:not(:empty)),
+#result-box-interactions:has(#interactions:not(:empty)),
+#result-box-messages:has(#messages:not(:empty)) {
+  display: block; /* Show when there is content */
+}
+
+#result-box-logs #logs:empty,
+#result-box-responses #responses:empty,
+#result-box-interactions #interactions:empty,
+#result-box-messages #messages:empty {
+  display: block; /* Show when there is content */
+}
+
+.message-body pre,
+.message-data pre {
+  white-space: pre-wrap;      /* Allow wrapping of long lines */
+  word-break: break-word;     /* Break long words if needed */
+  overflow-x: auto;           /* Add horizontal scroll if still needed */
+  max-width: 100%;            /* Prevent overflow */
+  box-sizing: border-box;
+}
+
+/* Optional: Make .message expand to fit content */
+.message {
+  width: 100%;
+  overflow: visible;
+}

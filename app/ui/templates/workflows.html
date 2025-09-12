@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Workflows{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/workflows.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ui_components/forms.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ui_components/expandable.css') }}">
+{% endblock %}
+
+{% block content %}  
+
+  <div class="container">
+    <header>
+        <h1>Workflows</h1>       
+    </header> 
+    
+    <main>
+        <div class="form-row">
+            <button id="reload-custom-workflows" class="btn-medium outline">Reload custom modules</button>
+        </div>
+
+        <div class="form-row">            
+            <textarea id="textareaInput" placeholder="Enter your text input here ..."></textarea>
+        </div>
+
+        <div class="form-row">
+            <select id="workflowSelect">
+                <option value="" disabled selected>Select workflow ...</option>
+                {% for id, workflow in workflows.items() %}
+                <option value="{{ id }}">{{ workflow.title }}</option>
+                {% endfor %}
+            </select>
+            
+            <select id="modelSelect">
+                <option value="" disabled selected>Keep default model</option>
+                {% for model in llm_models %}
+                <option value="{{ model.name }}">{{ model.name }}</option>
+                {% endfor %}
+            </select>
+
+            <button id="startWorkflowButton">Run workflow</button>
+        </div>
+
+        <div id="running-workflow-msg" class="spinner-box hidden">
+            <div class="spinner"></div>
+            <span>working ...</span>
+        </div>
+
+        <div id="result-box-messages">
+            <div class="box-header">Messages:</div>
+            <div id="messages"></div>
+        </div>
+
+        <div id="result-box-logs">
+            <div class="box-header">Workflow log:</div>
+            <div id="logs"></div>
+        </div>                
+        
+        <div id="result-box-interactions">
+            <div class="box-header">Required user interactions:</div>
+            <div id="interactions"></div>
+        </div> 
+
+        <div id="result-box-responses">
+            <div class="box-header">Workflow response:</div>
+            <div id="responses"></div>
+        </div>
+
+        
+
+    </main>
+
+    <footer></footer>
+
+  </div>     
+
+  <script src="{{ url_for('static', filename='js/workflows.js') }}"></script>
+
+{% endblock %}
