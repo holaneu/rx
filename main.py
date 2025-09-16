@@ -292,7 +292,41 @@ def reload_modules():
             ResponseKey.MESSAGE.value: f"Error: {str(e)}",
         }
 
+@app.route('/debug/workflows')
+def debug_workflows():
+    """Debug route to check workflows registry state."""
+    import sys
+    debug_info = {
+        "workflows_registry_count": len(workflows_core.WORKFLOWS_REGISTRY),
+        "workflows_registry_keys": list(workflows_core.WORKFLOWS_REGISTRY.keys()),
+        "user_data_path": str(APP_SETTINGS.USER_DATA_PATH),
+        "user_data_path_exists": APP_SETTINGS.USER_DATA_PATH.exists(),
+        "python_path_has_user": str(APP_SETTINGS.USER_DATA_PATH) in sys.path,
+    }
+    
+    # Try to check user workflows folder
+    try:
+        user_workflows_path = APP_SETTINGS.USER_DATA_PATH / "workflows"
+        debug_info["user_workflows_path"] = str(user_workflows_path)
+        debug_info["user_workflows_exists"] = user_workflows_path.exists()
+        if user_workflows_path.exists():
+            debug_info["user_workflows_files"] = [f.name for f in user_workflows_path.iterdir() if f.suffix == '.py']
+    except Exception as e:
+        debug_info["user_workflows_error"] = str(e)
+    
+    return jsonify(debug_info)
+
 # --- Main entry point ---
 if __name__ == '__main__':
-    os.makedirs(FILES_FOLDER, exist_ok=True)
+    # Initialize module loading at startup
+    try:
+        from app.utils.module_manager import ModuleManager
+        manager = ModuleManager()
+        print("Loading modules at startup...")
+        manager.full_reload()
+        print(f"Loaded {len(workflows_core.WORKFLOWS_REGISTRY)} workflows")
+    except Exception as e:
+        print(f"Error loading modules at startup: {e}")
+    
+    os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)
     app.run(port=5005, debug=True)
