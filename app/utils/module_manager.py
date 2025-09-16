@@ -4,7 +4,8 @@ import ast
 import re
 import importlib
 import importlib.util
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Union
 from app.configs.module_config import ModuleConfig, ModuleCategories, PackageTypes
 from app.configs.app_config import APP_SETTINGS
 
@@ -52,16 +53,17 @@ class ModuleManager:
         category_paths = self.config.get_category_paths(category)
         
         for directory in category_paths:
-            if os.path.exists(directory):
-                init_path = os.path.join(directory, "__init__.py")
+            directory_path = Path(directory)
+            if directory_path.exists():
+                init_path = directory_path / "__init__.py"
                 existing_symbols = self._get_existing_symbols(init_path)
-                new_auto_block = self._generate_imports(directory, existing_symbols)
+                new_auto_block = self._generate_imports(directory_path, existing_symbols)
                 self._update_init_file(init_path, new_auto_block)
                 #print(f"Updated static imports: {init_path}")
                 
                 # Reload the Python module
                 try:
-                    pkg_name = directory.replace("/", ".").replace("\\", ".")
+                    pkg_name = str(directory_path).replace("/", ".").replace("\\", ".")
                     if pkg_name in sys.modules:
                         importlib.reload(sys.modules[pkg_name])
                         print(f"Reloaded Python module: {pkg_name}")
@@ -74,12 +76,13 @@ class ModuleManager:
         user_custom_paths = self.config.get_all_module_paths().get(ModuleCategories.USER.value, {})
         directory = user_custom_paths.get(package_type)
         
-        if not directory or not os.path.isdir(directory):
+        directory_path = Path(directory) if directory else None
+        if not directory_path or not directory_path.is_dir():
             print(f"No user custom directory found for {package_type}: {directory}")
             return
         
         # Clean existing user modules from registry
-        module_prefix = directory.replace("/", ".").replace("\\", ".")
+        module_prefix = str(directory_path).replace("/", ".").replace("\\", ".")
         keys_to_remove = [
             key for key, value in registry.items()
             if isinstance(value, dict) and value.get("module", "").startswith(module_prefix)
@@ -114,33 +117,35 @@ class ModuleManager:
                     )
                     sys.modules[parent_name] = parent_module
 
-    def _load_modules_from_directory(self, directory: str, package_type: str):
+    def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
         """Load all Python modules from a directory."""
-        for root, _, files in os.walk(directory):
-            for filename in files:
-                if filename.endswith(".py") and filename not in {"__init__.py", "core.py", "_core.py"}:
-                    rel_path = os.path.relpath(os.path.join(root, filename), directory)
-                    parts = [APP_SETTINGS.USER_DATA_PATH, package_type] + rel_path.split(os.sep)
-                    mod_name = ".".join(parts).rsplit(".py", 1)[0]
-                    file_path = os.path.join(root, filename)
+        directory_path = Path(directory)
+        
+        for file_path in directory_path.rglob("*.py"):
+            if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
+                rel_path = file_path.relative_to(directory_path)
+                # Convert path parts to module name components
+                parts = [APP_SETTINGS.USER_DATA_PATH_STR, package_type] + list(rel_path.with_suffix('').parts)
+                mod_name = ".".join(parts)
+                
+                try:
+                    # Ensure parent packages exist
+                    self._ensure_parent_packages(mod_name)
                     
-                    try:
-                        # Ensure parent packages exist
-                        self._ensure_parent_packages(mod_name)
-                        
-                        spec = importlib.util.spec_from_file_location(mod_name, file_path)
-                        if spec and spec.loader:
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[mod_name] = module  # Register the module in sys.modules
-                            spec.loader.exec_module(module)
-                            #print(f"Loaded dynamic module: {mod_name}")
-                    except Exception as e:
-                        print(f"Error loading module {mod_name}: {e}")
+                    spec = importlib.util.spec_from_file_location(mod_name, str(file_path))
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        sys.modules[mod_name] = module  # Register the module in sys.modules
+                        spec.loader.exec_module(module)
+                        #print(f"Loaded dynamic module: {mod_name}")
+                except Exception as e:
+                    print(f"Error loading module {mod_name}: {e}")
     
     # Helper methods from original update_init2.py
-    def _extract_symbols(self, filepath):
-        with open(filepath, "r", encoding="utf-8") as f:
-            node = ast.parse(f.read(), filepath)
+    def _extract_symbols(self, filepath: Union[str, Path]):
+        filepath = Path(filepath)
+        with filepath.open("r", encoding="utf-8") as f:
+            node = ast.parse(f.read(), str(filepath))
         symbols = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef):
@@ -149,10 +154,11 @@ class ModuleManager:
                 symbols.append(n.name)
         return symbols
 
-    def _get_existing_symbols(self, init_path):
-        if not os.path.exists(init_path):
+    def _get_existing_symbols(self, init_path: Union[str, Path]):
+        init_path = Path(init_path)
+        if not init_path.exists():
             return set()
-        with open(init_path, "r", encoding="utf-8") as f:
+        with init_path.open("r", encoding="utf-8") as f:
             content = f.read()
         pattern = re.compile(f"{self.AUTO_START}.*?{self.AUTO_END}", re.DOTALL)
         content_no_auto = pattern.sub("", content)
@@ -162,41 +168,47 @@ class ModuleManager:
         items = re.findall(r'"([^"]+)"', match.group(1))
         return set(items)
 
-    def _generate_imports(self, directory, existing_symbols):
+    def _generate_imports(self, directory: Union[str, Path], existing_symbols):
+        directory_path = Path(directory)
         import_lines = []
         all_names = []
-        for root, _, files in os.walk(directory):
-            for fname in sorted(files):
-                if fname.endswith(".py") and fname not in ["__init__.py", "core.py", "_core.py"]:
-                    filepath = os.path.join(root, fname)
-                    symbols = self._extract_symbols(filepath)
-                    symbols = [s for s in symbols if not s.startswith("_") and s not in existing_symbols]
-                    if symbols:
-                        rel_path = os.path.relpath(filepath, directory)
-                        parts = rel_path.replace(".py", "").split(os.sep)
-                        import_path = ".".join(parts)
-                        import_lines.append(f"from .{import_path} import {', '.join(symbols)}")
-                        all_names.extend(symbols)
+        
+        for file_path in sorted(directory_path.rglob("*.py")):
+            if file_path.name not in ["__init__.py", "core.py", "_core.py"]:
+                symbols = self._extract_symbols(file_path)
+                symbols = [s for s in symbols if not s.startswith("_") and s not in existing_symbols]
+                if symbols:
+                    rel_path = file_path.relative_to(directory_path)
+                    parts = rel_path.with_suffix('').parts
+                    import_path = ".".join(parts)
+                    import_lines.append(f"from .{import_path} import {', '.join(symbols)}")
+                    all_names.extend(symbols)
+        
         if not all_names:
             return ""
         imports_block = "\n".join(import_lines)
         all_block = "__all__ = [\n    " + ",\n    ".join(f'"{name}"' for name in all_names) + ",\n]"
         return imports_block + "\n\n" + all_block
 
-    def _update_init_file(self, init_path, new_auto_block):
-        if not os.path.exists(init_path):
-            with open(init_path, "w", encoding="utf-8") as f:
+    def _update_init_file(self, init_path: Union[str, Path], new_auto_block):
+        init_path = Path(init_path)
+        if not init_path.exists():
+            with init_path.open("w", encoding="utf-8") as f:
                 f.write(f"{self.AUTO_START}\n{self.AUTO_END}\n")
-        with open(init_path, "r", encoding="utf-8") as f:
+        
+        with init_path.open("r", encoding="utf-8") as f:
             content = f.read()
+        
         pattern = re.compile(f"{self.AUTO_START}.*?{self.AUTO_END}", re.DOTALL)
         if new_auto_block.strip():
             replacement = f"{self.AUTO_START}\n{new_auto_block}\n{self.AUTO_END}"
         else:
             replacement = f"{self.AUTO_START}\n{self.AUTO_END}"
+        
         if pattern.search(content):
             content = pattern.sub(replacement, content)
         else:
             content = f"{replacement}\n\n" + content
-        with open(init_path, "w", encoding="utf-8") as f:
+        
+        with init_path.open("w", encoding="utf-8") as f:
             f.write(content)

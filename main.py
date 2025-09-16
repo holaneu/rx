@@ -5,8 +5,16 @@ import uuid
 import json
 from dotenv import load_dotenv
 import os
+import sys
+from pathlib import Path
 import time
 import threading
+
+# Add user folder to Python path for imports
+_app_root = Path(__file__).parent
+_user_path = _app_root / "user"
+if _user_path.exists() and str(_user_path) not in sys.path:
+    sys.path.insert(0, str(_user_path))
 
 # REMOVE: from app.workflows.core import WORKFLOWS_REGISTRY
 import app.workflows._core as workflows_core
@@ -25,7 +33,7 @@ app = Flask(__name__, static_folder='app/ui/static', template_folder='app/ui/tem
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Setup Secret Keys
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+dotenv_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
@@ -127,8 +135,8 @@ def files_file_detail(item_id):
             current = next((i for i in structure['items'] if i.id == current.parent), None) if hasattr(current, 'parent') else None
 
     try:
-        full_path = os.path.join(FILES_FOLDER, item.file_path)
-        with open(full_path, 'r', encoding='utf-8') as f:
+        full_path = Path(FILES_FOLDER) / item.file_path
+        with full_path.open('r', encoding='utf-8') as f:
             content = f.read()
         return render_template('files_file_detail.html', item=item, content=content, breadcrumbs=breadcrumbs)
     except Exception as e:
