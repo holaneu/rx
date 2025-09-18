@@ -7,7 +7,8 @@ from datetime import datetime
 import json
 import os
 from app.utils.response_types import ResponseKey, ResponseAction, ResponseStatus
-from user.tools import save_to_file, user_data_files_path, formatted_datetime
+# Removed direct import to avoid circular dependency
+# from user.tools import save_to_file, user_data_files_path, formatted_datetime
 
 # Decorator to register a function as a workflow
 # This decorator can be used to annotate functions that should be treated as workflows
@@ -99,6 +100,9 @@ class Workflow:
     
     def _save_log_file(self):
         try:
+            # Use direct imports to avoid conflict with multiple save_to_file/formatted_datetime functions
+            from user.tools.m_included import save_to_file, formatted_datetime, user_data_files_path
+            
             timestamp = datetime.now()
             formatted_time = formatted_datetime("%Y%m%d_%H%M%S")  #timestamp.strftime('%Y%m%d_%H%M%S')
             task_id_part = self.task_id or 'unknown'

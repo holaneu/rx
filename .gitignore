@@ -5,6 +5,9 @@ __pycache__/
 
 # Local environment files
 venv/
+.venv/
+
+# Local configuration files
 .env
 
 # Logs
