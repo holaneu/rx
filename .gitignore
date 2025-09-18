@@ -32,6 +32,7 @@ Thumbs.db
 _archive/
 private/
 test/
+scripts_local/
 
 # Local user data
 user/
