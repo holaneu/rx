@@ -317,16 +317,17 @@ def debug_workflows():
     return jsonify(debug_info)
 
 # --- Main entry point ---
+
+# Initialize module loading at startup
+try:
+    from app.utils.module_manager import ModuleManager
+    manager = ModuleManager()
+    print("Loading modules at startup...")
+    manager.full_reload()
+    print(f"Loaded {len(workflows_core.WORKFLOWS_REGISTRY)} workflows")
+except Exception as e:
+    print(f"Error loading modules at startup: {e}")
+
 if __name__ == '__main__':
-    # Initialize module loading at startup
-    try:
-        from app.utils.module_manager import ModuleManager
-        manager = ModuleManager()
-        print("Loading modules at startup...")
-        manager.full_reload()
-        print(f"Loaded {len(workflows_core.WORKFLOWS_REGISTRY)} workflows")
-    except Exception as e:
-        print(f"Error loading modules at startup: {e}")
-    
     os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)
     app.run(port=5005, debug=True)
