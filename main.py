@@ -65,6 +65,7 @@ def page_index():
 
 @app.route('/workflows')
 def page_workflows():
+    print(f"DEBUG: Rendering /workflows page. Found {len(workflows_core.WORKFLOWS_REGISTRY)} workflows in registry.")
     return render_template('workflows.html', workflows=workflows_core.WORKFLOWS_REGISTRY, llm_models=llm_models)
 
 @app.route('/test')

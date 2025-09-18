@@ -75,6 +75,26 @@
 
   </div>     
 
+  <script>
+    // --- DEBUGGING ---
+    const workflowsData = {{ workflows | tojson }};
+    console.log("DEBUG: Workflows data received by template:", workflowsData);
+    document.addEventListener('DOMContentLoaded', (event) => {
+      const header = document.querySelector('.container header');
+      if (header) {
+        const debugInfo = document.createElement('p');
+        debugInfo.textContent = `DEBUG: Template received ${Object.keys(workflowsData).length} workflows.`;
+        debugInfo.style.color = 'orange';
+        debugInfo.style.fontWeight = 'bold';
+        debugInfo.style.border = '1px solid orange';
+        debugInfo.style.padding = '10px';
+        debugInfo.style.marginTop = '10px';
+        header.insertAdjacentElement('afterend', debugInfo);
+      }
+    });
+    // --- END DEBUGGING ---
+  </script>
+
   <script src="{{ url_for('static', filename='js/workflows.js') }}"></script>
 
 {% endblock %}
