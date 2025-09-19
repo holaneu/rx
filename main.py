@@ -60,7 +60,6 @@ def get_workflows_catalog():
         workflow_id: {key: value for key, value in workflow_data.items() if key != "function"}
         for workflow_id, workflow_data in WORKFLOWS_REGISTRY.items()
     }
-print(json.dumps(get_workflows_catalog(), indent=2))
 
 
 # Routes
@@ -70,7 +69,6 @@ def page_index():
 
 @app.route('/workflows')
 def page_workflows():
-    print(f"DEBUG: Rendering /workflows page. Found {len(WORKFLOWS_REGISTRY)} workflows in registry.")
     return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
 
 @app.route('/test')
@@ -295,48 +293,6 @@ def reload_modules():
             ResponseKey.MESSAGE.value: f"Error: {str(e)}",
         }
 
-@app.route('/debug/reload_no_lock')
-def debug_reload_no_lock():
-    """Debug route to trigger module reloading without thread lock."""
-    import io
-    import sys
-    
-    # Capture print output
-    captured_output = io.StringIO()
-    old_stdout = sys.stdout
-    sys.stdout = captured_output
-    
-    try:
-        from app.utils.module_manager import ModuleManager
-        
-        manager = ModuleManager()
-        print("Starting debug reload WITHOUT thread lock...")
-        manager.full_reload()
-        
-        # Restore stdout
-        sys.stdout = old_stdout
-        output = captured_output.getvalue()
-        
-        return jsonify({
-            "status": "success",
-            "message": "Modules reloaded successfully (no lock)",
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "debug_output": output
-        })
-    except Exception as e:
-        # Restore stdout
-        sys.stdout = old_stdout
-        output = captured_output.getvalue()
-        
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "debug_output": output
-        })
-
 @app.route('/debug/workflows')
 def debug_workflows():
     """Debug route to check workflows registry state."""
@@ -361,99 +317,13 @@ def debug_workflows():
     
     return jsonify(debug_info)
 
-@app.route('/debug/reload')
-def debug_reload():
-    """Debug route to trigger module reloading with detailed output."""
-    import io
-    import sys
-    
-    # Capture print output
-    captured_output = io.StringIO()
-    old_stdout = sys.stdout
-    sys.stdout = captured_output
-    
-    try:
-        from app.utils.module_manager import ModuleManager
-        
-        manager = ModuleManager()
-        print("Starting debug reload...")
-        manager.full_reload()
-        
-        # Restore stdout
-        sys.stdout = old_stdout
-        output = captured_output.getvalue()
-        
-        return jsonify({
-            "status": "success",
-            "message": "Modules reloaded successfully",
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "debug_output": output
-        })
-    except Exception as e:
-        # Restore stdout
-        sys.stdout = old_stdout
-        output = captured_output.getvalue()
-        
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "debug_output": output
-        })
-
-@app.route('/debug/simple_test')
-def debug_simple_test():
-    """Test the most basic workflow import without module manager."""
-    import sys
-    import traceback
-    
-    try:
-        # Ensure paths are set up
-        app_root = Path(__file__).parent
-        user_path = app_root / "user"
-        
-        if str(app_root) not in sys.path:
-            sys.path.insert(0, str(app_root))
-        if str(user_path) not in sys.path:
-            sys.path.insert(0, str(user_path))
-        
-        # Clear any existing registry entries
-        WORKFLOWS_REGISTRY.clear()
-        
-        # Try to import workflow dependencies
-        from app.workflows import workflow, Workflow
-        
-        # Import a specific workflow file directly
-        from user.workflows import test_loading
-        
-        return jsonify({
-            "status": "success",
-            "message": "Simple import test successful",
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "sys_path_first_3": sys.path[:3]
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "sys_path_first_3": sys.path[:3] if 'sys' in locals() else []
-        })
-
 # --- Main entry point ---
 
 # Initialize module loading at startup
 try:
     from app.utils.module_manager import ModuleManager
     manager = ModuleManager()
-    print("Loading modules at startup...")
     manager.full_reload()
-    print(f"Loaded {len(WORKFLOWS_REGISTRY)} workflows")
 except Exception as e:
     print(f"Error loading modules at startup: {e}")
 

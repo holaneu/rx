@@ -31,8 +31,6 @@ class ModuleManager:
         if not package_types:
             package_types = [package.value for package in PackageTypes]
         
-        #print(f"Starting full reload for categories: {categories}, packages: {package_types}")
-        
         # 1. Update static imports for each category
         for category in categories:
             self._update_static_imports_for_category(category)
@@ -45,8 +43,6 @@ class ModuleManager:
         
         # 3. Invalidate Python import cache
         importlib.invalidate_caches()
-        
-        #print("Full reload completed successfully")
     
     def _update_static_imports_for_category(self, category: str):
         """Update __init__.py files for all packages in a category."""
@@ -59,31 +55,25 @@ class ModuleManager:
                 existing_symbols = self._get_existing_symbols(init_path)
                 new_auto_block = self._generate_imports(directory_path, existing_symbols)
                 self._update_init_file(init_path, new_auto_block)
-                #print(f"Updated static imports: {init_path}")
                 
                 # Reload the Python module
                 try:
                     pkg_name = str(directory_path).replace("/", ".").replace("\\", ".")
                     if pkg_name in sys.modules:
                         importlib.reload(sys.modules[pkg_name])
-                        print(f"Reloaded Python module: {pkg_name}")
-                except Exception as e:
-                    print(f"Warning: Could not reload module {pkg_name}: {e}")
+                except Exception:
+                    pass  # Silently continue if reload fails
     
     def _load_dynamic_modules_for_package(self, package_type: str, registry: Dict[str, dict]):
         """Load user custom modules into registry for a specific package type."""
-        print(f"--- Loading dynamic modules for package: {package_type} ---")
         # Only load from user_custom directory for dynamic loading
         user_custom_paths = self.config.get_all_module_paths().get(ModuleCategories.USER.value, {})
         directory = user_custom_paths.get(package_type)
-        print(f"  [DD] Directory for '{package_type}': {directory}")
         
         directory_path = Path(directory) if directory else None
         if not directory_path or not directory_path.is_dir():
-            print(f"  [EE] Directory not found or not a directory: {directory_path}")
             return
         
-        print(f"  [II] Found directory, proceeding to load: {directory_path}")
         # Clean existing user modules from registry
         module_prefix = "user." + package_type  # Use simplified prefix
         keys_to_remove = [
@@ -92,16 +82,13 @@ class ModuleManager:
         ]
         for key in keys_to_remove:
             del registry[key]
-            print(f"Removed old registry entry: {key}")
         
         # Remove from sys.modules
         for module_name in list(sys.modules):
             if module_name.startswith(module_prefix):
                 del sys.modules[module_name]
-        
         # Load new modules
         self._load_modules_from_directory(directory, package_type)
-        #print(f"Dynamic modules loaded for {package_type} from {directory}")
     
     def _ensure_parent_packages(self, mod_name: str):
         """Ensure all parent packages exist in sys.modules."""
@@ -123,39 +110,30 @@ class ModuleManager:
     def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
         """Load all Python modules from a directory."""
         directory_path = Path(directory)
-        print(f"  [DD] Scanning for modules in: {directory_path}")
         
         # Ensure the app root is in sys.path for imports
         app_root = Path(__file__).parent.parent.parent  # Go up from app/utils to root
         if str(app_root) not in sys.path:
             sys.path.insert(0, str(app_root))
-            print(f"  [DD] Added app root to sys.path: {app_root}")
         
         # Also ensure user path is in sys.path
         user_path = app_root / "user"
         if str(user_path) not in sys.path:
             sys.path.insert(0, str(user_path))
-            print(f"  [DD] Added user path to sys.path: {user_path}")
-        
-        print(f"  [DD] Current sys.path entries: {sys.path[:3]}")  # Show first 3 entries
         
         for file_path in directory_path.rglob("*.py"):
             if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
-                print(f"    [DD] Found potential module file: {file_path}")
                 rel_path = file_path.relative_to(directory_path)
                 # Convert path parts to module name components
                 # Use just "user" instead of full path to avoid invalid module names
                 parts = ["user", package_type] + list(rel_path.with_suffix('').parts)
                 mod_name = ".".join(parts)
-                print(f"    [DD] Generated module name: {mod_name}")
                 
                 try:
                     # First try to test if we can import the required dependencies
                     try:
                         from app.workflows import workflow, Workflow
-                        print(f"    [DD] Successfully imported workflow dependencies")
-                    except ImportError as ie:
-                        print(f"    [EE] Cannot import workflow dependencies: {ie}")
+                    except ImportError:
                         continue
                     
                     # Ensure parent packages exist
@@ -166,14 +144,8 @@ class ModuleManager:
                         module = importlib.util.module_from_spec(spec)
                         sys.modules[mod_name] = module  # Register the module in sys.modules
                         spec.loader.exec_module(module)
-                        print(f"    [II] Successfully loaded module: {mod_name}")
-                    else:
-                        print(f"    [EE] Could not create spec for module: {mod_name}")
                         
-                except Exception as e:
-                    print(f"    [EE] Error loading module {mod_name}: {e}")
-                    import traceback
-                    print(f"    [EE] Full traceback: {traceback.format_exc()}")
+                except Exception:
                     # Continue processing other modules even if one fails
                     pass
     
