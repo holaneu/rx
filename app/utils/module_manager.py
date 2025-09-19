@@ -76,23 +76,23 @@ class ModuleManager:
         # Only load from user_custom directory for dynamic loading
         user_custom_paths = self.config.get_all_module_paths().get(ModuleCategories.USER.value, {})
         directory = user_custom_paths.get(package_type)
-        # print(f"  [DD] Directory for '{package_type}': {directory}")
+        print(f"  [DD] Directory for '{package_type}': {directory}")
         
         directory_path = Path(directory) if directory else None
         if not directory_path or not directory_path.is_dir():
-            # print(f"  [EE] Directory not found or not a directory: {directory_path}")
+            print(f"  [EE] Directory not found or not a directory: {directory_path}")
             return
         
-        # print(f"  [II] Found directory, proceeding to load: {directory_path}")
+        print(f"  [II] Found directory, proceeding to load: {directory_path}")
         # Clean existing user modules from registry
-        module_prefix = str(directory_path).replace("/", ".").replace("\\", ".")
+        module_prefix = "user." + package_type  # Use simplified prefix
         keys_to_remove = [
             key for key, value in registry.items()
             if isinstance(value, dict) and value.get("module", "").startswith(module_prefix)
         ]
         for key in keys_to_remove:
             del registry[key]
-            #print(f"Removed old registry entry: {key}")
+            print(f"Removed old registry entry: {key}")
         
         # Remove from sys.modules
         for module_name in list(sys.modules):
@@ -123,16 +123,23 @@ class ModuleManager:
     def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
         """Load all Python modules from a directory."""
         directory_path = Path(directory)
-        # print(f"  [DD] Scanning for modules in: {directory_path}")
+        print(f"  [DD] Scanning for modules in: {directory_path}")
+        
+        # Ensure the app root is in sys.path for imports
+        app_root = Path(__file__).parent.parent.parent  # Go up from app/utils to root
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+            print(f"  [DD] Added app root to sys.path: {app_root}")
         
         for file_path in directory_path.rglob("*.py"):
             if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
-                # print(f"    [DD] Found potential module file: {file_path}")
+                print(f"    [DD] Found potential module file: {file_path}")
                 rel_path = file_path.relative_to(directory_path)
                 # Convert path parts to module name components
-                parts = [APP_SETTINGS.USER_DATA_PATH_STR, package_type] + list(rel_path.with_suffix('').parts)
+                # Use just "user" instead of full path to avoid invalid module names
+                parts = ["user", package_type] + list(rel_path.with_suffix('').parts)
                 mod_name = ".".join(parts)
-                # print(f"    [DD] Generated module name: {mod_name}")
+                print(f"    [DD] Generated module name: {mod_name}")
                 
                 try:
                     # Ensure parent packages exist
@@ -143,9 +150,10 @@ class ModuleManager:
                         module = importlib.util.module_from_spec(spec)
                         sys.modules[mod_name] = module  # Register the module in sys.modules
                         spec.loader.exec_module(module)
-                        # print(f"    [II] Successfully loaded module: {mod_name}")
+                        print(f"    [II] Successfully loaded module: {mod_name}")
                 except Exception as e:
-                    # print(f"    [EE] Error loading module {mod_name}: {e}")
+                    print(f"    [EE] Error loading module {mod_name}: {e}")
+                    # Continue processing other modules even if one fails
                     pass
     
     # Helper methods from original update_init2.py

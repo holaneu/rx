@@ -40,9 +40,6 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 # In‐memory stores for this example
 generators: dict[str, any] = {}
 
-# REMOVE?? Workflows registry
-# wf_registry = WORKFLOWS_REGISTRY
-
 # File storage manager
 FILES_FOLDER = APP_SETTINGS.USER_DATA_PATH
 file_manager = FileStorageManager(base_path=FILES_FOLDER, skip_folders=["__pycache__"])
@@ -57,24 +54,24 @@ def active_page(current_page, page_name):
     return 'active' if current_page == page_name else ''
 
 # Helper function to serialize workflows for templates (removes function objects)
-def get_serializable_workflows_registry():
+def get_workflows_catalog():
     """Return workflows registry without function objects for template rendering."""
     return {
         workflow_id: {key: value for key, value in workflow_data.items() if key != "function"}
         for workflow_id, workflow_data in WORKFLOWS_REGISTRY.items()
     }
-
+print(json.dumps(get_workflows_catalog(), indent=2))
 
 
 # Routes
 @app.route('/')
 def page_index():
-    return render_template('index.html', workflows=get_serializable_workflows_registry())
+    return render_template('index.html', workflows=get_workflows_catalog())
 
 @app.route('/workflows')
 def page_workflows():
     print(f"DEBUG: Rendering /workflows page. Found {len(WORKFLOWS_REGISTRY)} workflows in registry.")
-    return render_template('workflows.html', workflows=get_serializable_workflows_registry(), llm_models=llm_models)
+    return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
 
 @app.route('/test')
 def page_test():
@@ -262,7 +259,7 @@ def test():
 def api_get_workflows_registry():
     """Return current workflow registry without function objects."""    
     try:
-        workflows = get_serializable_workflows_registry()
+        workflows = get_workflows_catalog()
         return jsonify({
             ResponseKey.STATUS.value: ResponseStatus.SUCCESS.value,
             ResponseKey.DATA.value: workflows,
@@ -321,6 +318,30 @@ def debug_workflows():
         debug_info["user_workflows_error"] = str(e)
     
     return jsonify(debug_info)
+
+@app.route('/debug/reload')
+def debug_reload():
+    """Debug route to trigger module reloading with detailed output."""
+    try:
+        from app.utils.module_manager import ModuleManager
+        
+        manager = ModuleManager()
+        print("Starting debug reload...")
+        manager.full_reload()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Modules reloaded successfully",
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys())
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys())
+        })
 
 # --- Main entry point ---
 
