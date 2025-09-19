@@ -42,11 +42,11 @@ generators: dict[str, any] = {}
 
 # File storage manager
 FILES_FOLDER = APP_SETTINGS.USER_DATA_PATH
+# File storage manager setup
 file_manager = FileStorageManager(base_path=FILES_FOLDER, skip_folders=["__pycache__"])
 
-# --- one-per-process global lock ---
-# used for reload_modules() API
-_init_update_lock = threading.Lock()
+# Note: Removed threading lock for PythonAnywhere compatibility
+# If concurrent access becomes an issue, consider using file-based locking instead
 
 
 @app.template_filter('active_page')
@@ -280,10 +280,10 @@ def reload_modules():
         from app.utils.module_manager import ModuleManager
         
         manager = ModuleManager()
-        with _init_update_lock:
-            # Full reload: static imports + registry updates
-            manager.full_reload()
-            
+        # Removed threading lock for PythonAnywhere compatibility
+        # Full reload: static imports + registry updates
+        manager.full_reload()
+        
         return {
             ResponseKey.STATUS.value: ResponseStatus.SUCCESS.value,
             ResponseKey.MESSAGE.value: "All modules reloaded (static imports + registries).",
@@ -294,6 +294,48 @@ def reload_modules():
             ResponseKey.ERROR.value: f"Error: {str(e)}",
             ResponseKey.MESSAGE.value: f"Error: {str(e)}",
         }
+
+@app.route('/debug/reload_no_lock')
+def debug_reload_no_lock():
+    """Debug route to trigger module reloading without thread lock."""
+    import io
+    import sys
+    
+    # Capture print output
+    captured_output = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = captured_output
+    
+    try:
+        from app.utils.module_manager import ModuleManager
+        
+        manager = ModuleManager()
+        print("Starting debug reload WITHOUT thread lock...")
+        manager.full_reload()
+        
+        # Restore stdout
+        sys.stdout = old_stdout
+        output = captured_output.getvalue()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Modules reloaded successfully (no lock)",
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "debug_output": output
+        })
+    except Exception as e:
+        # Restore stdout
+        sys.stdout = old_stdout
+        output = captured_output.getvalue()
+        
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "debug_output": output
+        })
 
 @app.route('/debug/workflows')
 def debug_workflows():
@@ -322,6 +364,14 @@ def debug_workflows():
 @app.route('/debug/reload')
 def debug_reload():
     """Debug route to trigger module reloading with detailed output."""
+    import io
+    import sys
+    
+    # Capture print output
+    captured_output = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = captured_output
+    
     try:
         from app.utils.module_manager import ModuleManager
         
@@ -329,18 +379,70 @@ def debug_reload():
         print("Starting debug reload...")
         manager.full_reload()
         
+        # Restore stdout
+        sys.stdout = old_stdout
+        output = captured_output.getvalue()
+        
         return jsonify({
             "status": "success",
             "message": "Modules reloaded successfully",
             "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys())
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "debug_output": output
         })
     except Exception as e:
+        # Restore stdout
+        sys.stdout = old_stdout
+        output = captured_output.getvalue()
+        
         return jsonify({
             "status": "error",
             "error": str(e),
             "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys())
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "debug_output": output
+        })
+
+@app.route('/debug/simple_test')
+def debug_simple_test():
+    """Test the most basic workflow import without module manager."""
+    import sys
+    import traceback
+    
+    try:
+        # Ensure paths are set up
+        app_root = Path(__file__).parent
+        user_path = app_root / "user"
+        
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+        if str(user_path) not in sys.path:
+            sys.path.insert(0, str(user_path))
+        
+        # Clear any existing registry entries
+        WORKFLOWS_REGISTRY.clear()
+        
+        # Try to import workflow dependencies
+        from app.workflows import workflow, Workflow
+        
+        # Import a specific workflow file directly
+        from user.workflows import test_loading
+        
+        return jsonify({
+            "status": "success",
+            "message": "Simple import test successful",
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "sys_path_first_3": sys.path[:3]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "sys_path_first_3": sys.path[:3] if 'sys' in locals() else []
         })
 
 # --- Main entry point ---

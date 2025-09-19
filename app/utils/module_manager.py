@@ -131,6 +131,14 @@ class ModuleManager:
             sys.path.insert(0, str(app_root))
             print(f"  [DD] Added app root to sys.path: {app_root}")
         
+        # Also ensure user path is in sys.path
+        user_path = app_root / "user"
+        if str(user_path) not in sys.path:
+            sys.path.insert(0, str(user_path))
+            print(f"  [DD] Added user path to sys.path: {user_path}")
+        
+        print(f"  [DD] Current sys.path entries: {sys.path[:3]}")  # Show first 3 entries
+        
         for file_path in directory_path.rglob("*.py"):
             if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
                 print(f"    [DD] Found potential module file: {file_path}")
@@ -142,6 +150,14 @@ class ModuleManager:
                 print(f"    [DD] Generated module name: {mod_name}")
                 
                 try:
+                    # First try to test if we can import the required dependencies
+                    try:
+                        from app.workflows import workflow, Workflow
+                        print(f"    [DD] Successfully imported workflow dependencies")
+                    except ImportError as ie:
+                        print(f"    [EE] Cannot import workflow dependencies: {ie}")
+                        continue
+                    
                     # Ensure parent packages exist
                     self._ensure_parent_packages(mod_name)
                     
@@ -151,8 +167,13 @@ class ModuleManager:
                         sys.modules[mod_name] = module  # Register the module in sys.modules
                         spec.loader.exec_module(module)
                         print(f"    [II] Successfully loaded module: {mod_name}")
+                    else:
+                        print(f"    [EE] Could not create spec for module: {mod_name}")
+                        
                 except Exception as e:
                     print(f"    [EE] Error loading module {mod_name}: {e}")
+                    import traceback
+                    print(f"    [EE] Full traceback: {traceback.format_exc()}")
                     # Continue processing other modules even if one fails
                     pass
     
