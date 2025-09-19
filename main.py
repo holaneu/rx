@@ -273,18 +273,14 @@ def api_get_workflows_registry():
     
 @app.route('/api/reload_modules', methods=['POST'])
 def reload_modules():
-    """Hot-reload all modules with both static imports and registry updates."""
+    """Hot-reload all modules using the simple method that works on PythonAnywhere."""
     try:
-        from app.utils.module_manager import ModuleManager
-        
-        manager = ModuleManager()
-        # Removed threading lock for PythonAnywhere compatibility
-        # Full reload: static imports + registry updates
-        manager.full_reload()
+        # Use the simple loading method instead of module manager
+        load_user_workflows_simple()
         
         return {
             ResponseKey.STATUS.value: ResponseStatus.SUCCESS.value,
-            ResponseKey.MESSAGE.value: "All modules reloaded (static imports + registries).",
+            ResponseKey.MESSAGE.value: f"Modules reloaded successfully. Loaded {len(WORKFLOWS_REGISTRY)} workflows.",
         }
     except Exception as e:
         return {
@@ -425,12 +421,43 @@ def debug_reload_simple():
 # --- Main entry point ---
 
 # Initialize module loading at startup
-try:
-    from app.utils.module_manager import ModuleManager
-    manager = ModuleManager()
-    manager.full_reload()
-except Exception as e:
-    print(f"Error loading modules at startup: {e}")
+def load_user_workflows_simple():
+    """Simple workflow loading that works reliably on all platforms."""
+    try:
+        import sys
+        # Ensure paths are set up
+        app_root = Path(__file__).parent
+        user_path = app_root / "user"
+        
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+        if str(user_path) not in sys.path:
+            sys.path.insert(0, str(user_path))
+        
+        # Import workflow dependencies first
+        from app.workflows import workflow, Workflow
+        
+        # Import ALL workflow modules directly
+        workflows_path = user_path / "workflows"
+        if workflows_path.exists():
+            for py_file in workflows_path.glob("*.py"):
+                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
+                    try:
+                        module_name = f"user.workflows.{py_file.stem}"
+                        # Remove from sys.modules if already imported
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        # Import the module directly
+                        exec(f"from user.workflows import {py_file.stem}")
+                    except Exception:
+                        # Continue with other modules if one fails
+                        pass
+                        
+    except Exception as e:
+        print(f"Error loading workflows at startup: {e}")
+
+# Load workflows at startup using the simple method
+load_user_workflows_simple()
 
 if __name__ == '__main__':
     os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)

@@ -87,8 +87,9 @@ class ModuleManager:
         for module_name in list(sys.modules):
             if module_name.startswith(module_prefix):
                 del sys.modules[module_name]
-        # Load new modules
-        self._load_modules_from_directory(directory, package_type)
+        
+        # Load new modules using simple import method
+        self._load_modules_from_directory_simple(directory_path, package_type)
     
     def _ensure_parent_packages(self, mod_name: str):
         """Ensure all parent packages exist in sys.modules."""
@@ -107,47 +108,38 @@ class ModuleManager:
                     )
                     sys.modules[parent_name] = parent_module
 
-    def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
-        """Load all Python modules from a directory."""
-        directory_path = Path(directory)
+    def _load_modules_from_directory_simple(self, directory_path: Path, package_type: str):
+        """Load all Python modules from a directory using simple Python imports."""
+        # Ensure paths are in sys.path
+        app_root = Path(__file__).parent.parent.parent
+        user_path = app_root / "user"
         
-        # Ensure the app root is in sys.path for imports
-        app_root = Path(__file__).parent.parent.parent  # Go up from app/utils to root
         if str(app_root) not in sys.path:
             sys.path.insert(0, str(app_root))
-        
-        # Also ensure user path is in sys.path
-        user_path = app_root / "user"
         if str(user_path) not in sys.path:
             sys.path.insert(0, str(user_path))
         
-        for file_path in directory_path.rglob("*.py"):
-            if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
-                rel_path = file_path.relative_to(directory_path)
-                # Convert path parts to module name components
-                # Use just "user" instead of full path to avoid invalid module names
-                parts = ["user", package_type] + list(rel_path.with_suffix('').parts)
-                mod_name = ".".join(parts)
-                
+        # Import all Python files in the directory
+        for py_file in directory_path.glob("*.py"):
+            if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
                 try:
-                    # First try to test if we can import the required dependencies
-                    try:
-                        from app.workflows import workflow, Workflow
-                    except ImportError:
-                        continue
+                    module_name = f"user.{package_type}.{py_file.stem}"
+                    # Remove from sys.modules if already imported to force fresh import
+                    if module_name in sys.modules:
+                        del sys.modules[module_name]
                     
-                    # Ensure parent packages exist
-                    self._ensure_parent_packages(mod_name)
+                    # Use exec with dynamic import - this is what worked in debug/simple_test
+                    exec(f"from user.{package_type} import {py_file.stem}")
                     
-                    spec = importlib.util.spec_from_file_location(mod_name, str(file_path))
-                    if spec and spec.loader:
-                        module = importlib.util.module_from_spec(spec)
-                        sys.modules[mod_name] = module  # Register the module in sys.modules
-                        spec.loader.exec_module(module)
-                        
                 except Exception:
-                    # Continue processing other modules even if one fails
+                    # Continue with other modules if one fails
                     pass
+
+    def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
+        """DEPRECATED: Load all Python modules from a directory using complex importlib method."""
+        # This method is kept for backwards compatibility but not used
+        # The simple method above is used instead
+        pass
     
     # Helper methods from original update_init2.py
     def _extract_symbols(self, filepath: Union[str, Path]):
