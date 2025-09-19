@@ -317,6 +317,111 @@ def debug_workflows():
     
     return jsonify(debug_info)
 
+@app.route('/debug/simple_test')
+def debug_simple_test():
+    """Test the most basic workflow import without module manager."""
+    import sys
+    import traceback
+    
+    try:
+        # Ensure paths are set up
+        app_root = Path(__file__).parent
+        user_path = app_root / "user"
+        
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+        if str(user_path) not in sys.path:
+            sys.path.insert(0, str(user_path))
+        
+        # Clear any existing registry entries
+        WORKFLOWS_REGISTRY.clear()
+        
+        # Try to import workflow dependencies
+        from app.workflows import workflow, Workflow
+        
+        # Import ALL workflow modules directly (this bypasses the module manager)
+        workflows_path = user_path / "workflows"
+        if workflows_path.exists():
+            for py_file in workflows_path.glob("*.py"):
+                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
+                    try:
+                        module_name = f"user.workflows.{py_file.stem}"
+                        # Remove from sys.modules if already imported
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        # Import the module directly
+                        exec(f"from user.workflows import {py_file.stem}")
+                    except Exception as e:
+                        print(f"Failed to import {py_file.name}: {e}")
+        
+        return jsonify({
+            "status": "success",
+            "message": "Simple import test successful",
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "sys_path_first_3": sys.path[:3]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "sys_path_first_3": sys.path[:3] if 'sys' in locals() else []
+        })
+
+@app.route('/debug/reload_simple')
+def debug_reload_simple():
+    """Trigger the simple loading mechanism for all workflows."""
+    try:
+        # Use the same mechanism as simple_test but without clearing registry first
+        app_root = Path(__file__).parent
+        user_path = app_root / "user"
+        
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+        if str(user_path) not in sys.path:
+            sys.path.insert(0, str(user_path))
+        
+        # Import workflow dependencies
+        from app.workflows import workflow, Workflow
+        
+        # Import ALL workflow modules directly
+        workflows_path = user_path / "workflows"
+        imported_count = 0
+        errors = []
+        
+        if workflows_path.exists():
+            for py_file in workflows_path.glob("*.py"):
+                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
+                    try:
+                        module_name = f"user.workflows.{py_file.stem}"
+                        # Remove from sys.modules if already imported
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        # Import the module directly
+                        exec(f"from user.workflows import {py_file.stem}")
+                        imported_count += 1
+                    except Exception as e:
+                        errors.append(f"{py_file.name}: {str(e)}")
+        
+        return jsonify({
+            "status": "success",
+            "message": "Simple reload completed",
+            "workflows_count": len(WORKFLOWS_REGISTRY),
+            "workflows": list(WORKFLOWS_REGISTRY.keys()),
+            "imported_files": imported_count,
+            "errors": errors
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "workflows_count": len(WORKFLOWS_REGISTRY)
+        })
+
 # --- Main entry point ---
 
 # Initialize module loading at startup
