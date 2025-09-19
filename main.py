@@ -16,8 +16,8 @@ _user_path = _app_root / "user"
 if _user_path.exists() and str(_user_path) not in sys.path:
     sys.path.insert(0, str(_user_path))
 
-# REMOVE: from app.workflows.core import WORKFLOWS_REGISTRY
-import app.workflows._core as workflows_core
+# Import workflows registry from the centralized location
+from app.utils.registries import WORKFLOWS_REGISTRY
 from app.utils.response_types import response_output_error, ResponseKey, ResponseStatus
 from app.storage.manager import FileStorageManager
 from app.configs.app_config import APP_SETTINGS
@@ -56,17 +56,25 @@ _init_update_lock = threading.Lock()
 def active_page(current_page, page_name):
     return 'active' if current_page == page_name else ''
 
+# Helper function to serialize workflows for templates (removes function objects)
+def get_serializable_workflows_registry():
+    """Return workflows registry without function objects for template rendering."""
+    return {
+        workflow_id: {key: value for key, value in workflow_data.items() if key != "function"}
+        for workflow_id, workflow_data in WORKFLOWS_REGISTRY.items()
+    }
+
 
 
 # Routes
 @app.route('/')
 def page_index():
-    return render_template('index.html', workflows=workflows_core.WORKFLOWS_REGISTRY)
+    return render_template('index.html', workflows=get_serializable_workflows_registry())
 
 @app.route('/workflows')
 def page_workflows():
-    print(f"DEBUG: Rendering /workflows page. Found {len(workflows_core.WORKFLOWS_REGISTRY)} workflows in registry.")
-    return render_template('workflows.html', workflows=workflows_core.WORKFLOWS_REGISTRY, llm_models=llm_models)
+    print(f"DEBUG: Rendering /workflows page. Found {len(WORKFLOWS_REGISTRY)} workflows in registry.")
+    return render_template('workflows.html', workflows=get_serializable_workflows_registry(), llm_models=llm_models)
 
 @app.route('/test')
 def page_test():
@@ -160,7 +168,7 @@ def start_task():
                 ResponseKey.TASK_ID.value: task_id
                 })), 400
         workflow_id = data.get('workflow_id')
-        workflow = workflows_core.WORKFLOWS_REGISTRY.get(workflow_id)
+        workflow = WORKFLOWS_REGISTRY.get(workflow_id)
         if not workflow:
             return jsonify(response_output_error({
                 ResponseKey.ERROR.value: "[start_task()]: Invalid workflow. Workflow not found in workflows registry.",
@@ -254,10 +262,7 @@ def test():
 def api_get_workflows_registry():
     """Return current workflow registry without function objects."""    
     try:
-        workflows = {
-            wf_id: {k: v for k, v in wf.items() if k != "function"}
-            for wf_id, wf in workflows_core.WORKFLOWS_REGISTRY.items()
-        }
+        workflows = get_serializable_workflows_registry()
         return jsonify({
             ResponseKey.STATUS.value: ResponseStatus.SUCCESS.value,
             ResponseKey.DATA.value: workflows,
@@ -298,8 +303,8 @@ def debug_workflows():
     """Debug route to check workflows registry state."""
     import sys
     debug_info = {
-        "workflows_registry_count": len(workflows_core.WORKFLOWS_REGISTRY),
-        "workflows_registry_keys": list(workflows_core.WORKFLOWS_REGISTRY.keys()),
+        "workflows_registry_count": len(WORKFLOWS_REGISTRY),
+        "workflows_registry_keys": list(WORKFLOWS_REGISTRY.keys()),
         "user_data_path": str(APP_SETTINGS.USER_DATA_PATH),
         "user_data_path_exists": APP_SETTINGS.USER_DATA_PATH.exists(),
         "python_path_has_user": str(APP_SETTINGS.USER_DATA_PATH) in sys.path,
@@ -325,7 +330,7 @@ try:
     manager = ModuleManager()
     print("Loading modules at startup...")
     manager.full_reload()
-    print(f"Loaded {len(workflows_core.WORKFLOWS_REGISTRY)} workflows")
+    print(f"Loaded {len(WORKFLOWS_REGISTRY)} workflows")
 except Exception as e:
     print(f"Error loading modules at startup: {e}")
 

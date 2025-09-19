@@ -4,8 +4,8 @@ __pycache__/
 *.pyo
 
 # Local environment files
-venv/
-.venv/
+venv*/
+.venv*/
 
 # Local configuration files
 .env

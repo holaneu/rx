@@ -1,0 +1,6 @@
+@echo off
+echo Aktivuji virtualni prostredi venv310...
+call venv310\Scripts\activate
+echo Spoustim aplikaci...
+python main.py
+pause

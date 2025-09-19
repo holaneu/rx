@@ -72,15 +72,18 @@ class ModuleManager:
     
     def _load_dynamic_modules_for_package(self, package_type: str, registry: Dict[str, dict]):
         """Load user custom modules into registry for a specific package type."""
+        print(f"--- Loading dynamic modules for package: {package_type} ---")
         # Only load from user_custom directory for dynamic loading
         user_custom_paths = self.config.get_all_module_paths().get(ModuleCategories.USER.value, {})
         directory = user_custom_paths.get(package_type)
+        # print(f"  [DD] Directory for '{package_type}': {directory}")
         
         directory_path = Path(directory) if directory else None
         if not directory_path or not directory_path.is_dir():
-            print(f"No user custom directory found for {package_type}: {directory}")
+            # print(f"  [EE] Directory not found or not a directory: {directory_path}")
             return
         
+        # print(f"  [II] Found directory, proceeding to load: {directory_path}")
         # Clean existing user modules from registry
         module_prefix = str(directory_path).replace("/", ".").replace("\\", ".")
         keys_to_remove = [
@@ -120,13 +123,16 @@ class ModuleManager:
     def _load_modules_from_directory(self, directory: Union[str, Path], package_type: str):
         """Load all Python modules from a directory."""
         directory_path = Path(directory)
+        # print(f"  [DD] Scanning for modules in: {directory_path}")
         
         for file_path in directory_path.rglob("*.py"):
             if file_path.name not in {"__init__.py", "core.py", "_core.py"}:
+                # print(f"    [DD] Found potential module file: {file_path}")
                 rel_path = file_path.relative_to(directory_path)
                 # Convert path parts to module name components
                 parts = [APP_SETTINGS.USER_DATA_PATH_STR, package_type] + list(rel_path.with_suffix('').parts)
                 mod_name = ".".join(parts)
+                # print(f"    [DD] Generated module name: {mod_name}")
                 
                 try:
                     # Ensure parent packages exist
@@ -137,9 +143,10 @@ class ModuleManager:
                         module = importlib.util.module_from_spec(spec)
                         sys.modules[mod_name] = module  # Register the module in sys.modules
                         spec.loader.exec_module(module)
-                        #print(f"Loaded dynamic module: {mod_name}")
+                        # print(f"    [II] Successfully loaded module: {mod_name}")
                 except Exception as e:
-                    print(f"Error loading module {mod_name}: {e}")
+                    # print(f"    [EE] Error loading module {mod_name}: {e}")
+                    pass
     
     # Helper methods from original update_init2.py
     def _extract_symbols(self, filepath: Union[str, Path]):
