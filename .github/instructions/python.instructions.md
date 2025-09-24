@@ -8,8 +8,8 @@ applyTo: '**/*.py'
 
 - Always use `with` statements when working with file I/O to ensure proper resource management and to avoid potential file corruption or memory leaks.
 
-- Avoid using absolute file paths. Instead, use relative paths or configuration settings to define file locations. This makes your code more portable and easier to manage across different environments.
+- Use relative paths or configuration settings to define file locations to make the code portable and easier to manage across different environments, but only in a way that is secure and does not expose the application to path traversal vulnerabilities.
 
-- Prefer using `raise Exception(...)` for error handling instead of defining or using special error types. Clearly mention the type of error in the error message text rather than expressing it through a custom or specific exception class.
+- Prefer using `raise Exception(...)` for error handling instead of defining or using special error types. Clearly mention the type of error and all other useful information in the error message text rather than expressing it through a custom or specific exception class.
 
 Follow also  [General Coding Instruction](../copilot_instructions.md)
