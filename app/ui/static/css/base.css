@@ -133,7 +133,7 @@ body {
 .main-content {
     margin: 0 auto;
     max-width: 800px;
-    padding: 20px;
+    padding: 0;
 }
 
 @media (min-width: 1024px) {
