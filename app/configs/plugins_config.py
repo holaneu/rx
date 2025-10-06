@@ -10,8 +10,9 @@ from app.utils.registries import (
 class PluginsConfig:
     """Simplified configuration for plugin management."""
     
-    # Root plugins directory - single source of truth
-    PLUGINS_ROOT = Path("plugins")
+    # Root plugins directory - single source of truth  
+    # Use absolute path based on this file's location to ensure it works on all hosting platforms
+    PLUGINS_ROOT = Path(__file__).parent.parent.parent / "plugins"
     
     # Supported plugin types and their registries
     PLUGIN_TYPES = {

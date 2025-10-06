@@ -71,10 +71,6 @@ def page_index():
 def page_workflows():
     return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
 
-@app.route('/test')
-def page_test():
-    return render_template('test.html')
-
 # redirect to handle the trailing slash issue
 @app.route('/files/')
 def files_with_slash():
@@ -271,197 +267,140 @@ def api_get_workflows_registry():
         }
 
     
-@app.route('/api/reload_modules', methods=['POST'])
-def reload_modules():
-    """Hot-reload all modules using the simple method that works on PythonAnywhere."""
-    try:
-        # Use the simple loading method instead of module manager
-        load_user_workflows_simple()
-        
-        return {
-            ResponseKey.STATUS.value: ResponseStatus.SUCCESS.value,
-            ResponseKey.MESSAGE.value: f"Modules reloaded successfully. Loaded {len(WORKFLOWS_REGISTRY)} workflows.",
-        }
-    except Exception as e:
-        return {
-            ResponseKey.STATUS.value: ResponseStatus.ERROR.value,
-            ResponseKey.ERROR.value: f"Error: {str(e)}",
-            ResponseKey.MESSAGE.value: f"Error: {str(e)}",
-        }
 
-@app.route('/debug/workflows')
-def debug_workflows():
-    """Debug route to check workflows registry state."""
-    import sys
-    debug_info = {
-        "workflows_registry_count": len(WORKFLOWS_REGISTRY),
-        "workflows_registry_keys": list(WORKFLOWS_REGISTRY.keys()),
-        "user_data_path": str(APP_SETTINGS.USER_DATA_PATH),
-        "user_data_path_exists": APP_SETTINGS.USER_DATA_PATH.exists(),
-        "python_path_has_user": str(APP_SETTINGS.USER_DATA_PATH) in sys.path,
-    }
-    
-    # Try to check user workflows folder
-    try:
-        user_workflows_path = APP_SETTINGS.USER_DATA_PATH / "workflows"
-        debug_info["user_workflows_path"] = str(user_workflows_path)
-        debug_info["user_workflows_exists"] = user_workflows_path.exists()
-        if user_workflows_path.exists():
-            debug_info["user_workflows_files"] = [f.name for f in user_workflows_path.iterdir() if f.suffix == '.py']
-    except Exception as e:
-        debug_info["user_workflows_error"] = str(e)
-    
-    return jsonify(debug_info)
 
-@app.route('/debug/simple_test')
-def debug_simple_test():
-    """Test the most basic workflow import without module manager."""
+@app.route('/api/diagnostic', methods=['GET'])
+def diagnostic():
+    """Comprehensive diagnostic endpoint to debug plugin loading issues."""
+    import os
     import sys
-    import traceback
+    from pathlib import Path
     
     try:
-        # Ensure paths are set up
-        app_root = Path(__file__).parent
-        user_path = app_root / "user"
+        # Basic environment info
+        cwd = os.getcwd()
+        python_path = sys.path[:5]  # First 5 entries
         
-        if str(app_root) not in sys.path:
-            sys.path.insert(0, str(app_root))
-        if str(user_path) not in sys.path:
-            sys.path.insert(0, str(user_path))
+        # Check plugins directory
+        plugins_dir = Path("plugins")
+        plugins_dir_abs = plugins_dir.resolve()
         
-        # Clear any existing registry entries
+        # Check individual plugin type directories
+        workflows_dir = plugins_dir / "workflows"  
+        prompts_dir = plugins_dir / "prompts"
+        tools_dir = plugins_dir / "tools"
+        
+        # Count plugin files
+        workflow_files = []
+        if workflows_dir.exists():
+            workflow_files = [f.name for f in workflows_dir.glob("*.py") 
+                            if f.name not in {"__init__.py", "_core.py", "core.py"}]
+        
+        # Check registries
+        from app.utils.registries import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
+        
+        # Test plugin manager
+        plugin_manager_error = None
+        try:
+            from app.utils.plugins_manager import PluginsManager
+            manager = PluginsManager()
+            manager.load_plugins_for_type("workflows")
+        except Exception as e:
+            plugin_manager_error = str(e)
+        
+        return jsonify({
+            "status": "success",
+            "environment": {
+                "cwd": cwd,
+                "python_path": python_path,
+                "plugins_dir": str(plugins_dir),
+                "plugins_dir_abs": str(plugins_dir_abs),
+                "plugins_dir_exists": plugins_dir.exists()
+            },
+            "plugin_directories": {
+                "workflows_dir_exists": workflows_dir.exists(),
+                "prompts_dir_exists": prompts_dir.exists(), 
+                "tools_dir_exists": tools_dir.exists(),
+                "workflow_files_found": len(workflow_files),
+                "workflow_files": workflow_files[:10]  # Show first 10
+            },
+            "registries": {
+                "workflows_loaded": len(WORKFLOWS_REGISTRY),
+                "prompts_loaded": len(PROMPTS_REGISTRY),
+                "tools_loaded": len(TOOLS_REGISTRY),
+                "workflow_keys": list(WORKFLOWS_REGISTRY.keys())[:5]  # First 5
+            },
+            "plugin_manager": {
+                "error": plugin_manager_error,
+                "can_import": plugin_manager_error is None
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "message": f"Diagnostic failed: {str(e)}"
+        })
+
+@app.route('/api/reload_plugins', methods=['POST'])
+def reload_plugins():
+    """Reload plugins using the new simplified plugins system."""
+    try:
+        from app.utils.plugins_manager import PluginsManager
+        from app.utils.registries import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
+        
+        # Clear existing registries
         WORKFLOWS_REGISTRY.clear()
+        PROMPTS_REGISTRY.clear() 
+        TOOLS_REGISTRY.clear()
         
-        # Try to import workflow dependencies
-        from app.workflows import workflow, Workflow
-        
-        # Import ALL workflow modules directly (this bypasses the module manager)
-        workflows_path = user_path / "workflows"
-        # Updated to use plugins path
-        plugins_workflows_path = Path("plugins/workflows")
-        if plugins_workflows_path.exists():
-            for py_file in plugins_workflows_path.glob("*.py"):
-                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
-                    try:
-                        module_name = f"plugins.workflows.{py_file.stem}"
-                        # Remove from sys.modules if already imported
-                        if module_name in sys.modules:
-                            del sys.modules[module_name]
-                        # Import the module directly
-                        exec(f"from plugins.workflows import {py_file.stem}")
-                    except Exception as e:
-                        print(f"Failed to import {py_file.name}: {e}")
+        # Reload all plugins
+        manager = PluginsManager()
+        manager.load_all_plugins()
         
         return jsonify({
             "status": "success",
-            "message": "Simple import test successful",
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "sys_path_first_3": sys.path[:3]
+            "message": "Plugins reloaded successfully",
+            "counts": {
+                "workflows": len(WORKFLOWS_REGISTRY),
+                "prompts": len(PROMPTS_REGISTRY),
+                "tools": len(TOOLS_REGISTRY)
+            },
+            "workflows": list(WORKFLOWS_REGISTRY.keys())[:10]  # Show first 10
         })
         
     except Exception as e:
         return jsonify({
-            "status": "error",
+            "status": "error", 
             "error": str(e),
-            "traceback": traceback.format_exc(),
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "sys_path_first_3": sys.path[:3] if 'sys' in locals() else []
+            "message": f"Plugin reload failed: {str(e)}"
         })
 
-@app.route('/debug/reload_simple')
-def debug_reload_simple():
-    """Trigger the simple loading mechanism for all workflows."""
-    try:
-        # Use the same mechanism as simple_test but without clearing registry first
-        app_root = Path(__file__).parent
-        user_path = app_root / "user"
-        
-        if str(app_root) not in sys.path:
-            sys.path.insert(0, str(app_root))
-        if str(user_path) not in sys.path:
-            sys.path.insert(0, str(user_path))
-        
-        # Import workflow dependencies
-        from app.workflows import workflow, Workflow
-        
-        # Import ALL workflow modules directly
-        workflows_path = user_path / "workflows"
-        imported_count = 0
-        errors = []
-        
-        # Updated to use plugins path  
-        plugins_workflows_path = Path("plugins/workflows")
-        if plugins_workflows_path.exists():
-            for py_file in plugins_workflows_path.glob("*.py"):
-                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
-                    try:
-                        module_name = f"plugins.workflows.{py_file.stem}"
-                        # Remove from sys.modules if already imported
-                        if module_name in sys.modules:
-                            del sys.modules[module_name]
-                        # Import the module directly
-                        exec(f"from plugins.workflows import {py_file.stem}")
-                        imported_count += 1
-                    except Exception as e:
-                        errors.append(f"{py_file.name}: {str(e)}")
-        
-        return jsonify({
-            "status": "success",
-            "message": "Simple reload completed",
-            "workflows_count": len(WORKFLOWS_REGISTRY),
-            "workflows": list(WORKFLOWS_REGISTRY.keys()),
-            "imported_files": imported_count,
-            "errors": errors
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "workflows_count": len(WORKFLOWS_REGISTRY)
-        })
+
 
 # --- Main entry point ---
 
-# Initialize module loading at startup
-def load_user_workflows_simple():
-    """Simple workflow loading that works reliably on all platforms."""
-    try:
-        import sys
-        # Ensure paths are set up
-        app_root = Path(__file__).parent
-        user_path = app_root / "user"
-        
-        if str(app_root) not in sys.path:
-            sys.path.insert(0, str(app_root))
-        if str(user_path) not in sys.path:
-            sys.path.insert(0, str(user_path))
-        
-        # Import workflow dependencies first
-        from app.workflows import workflow, Workflow
-        
-        # Import ALL workflow modules directly from plugins
-        plugins_workflows_path = Path("plugins/workflows")
-        if plugins_workflows_path.exists():
-            for py_file in plugins_workflows_path.glob("*.py"):
-                if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
-                    try:
-                        module_name = f"plugins.workflows.{py_file.stem}"
-                        # Remove from sys.modules if already imported
-                        if module_name in sys.modules:
-                            del sys.modules[module_name]
-                        # Import the module directly
-                        exec(f"from plugins.workflows import {py_file.stem}")
-                    except Exception:
-                        # Continue with other modules if one fails
-                        pass
-                        
-    except Exception as e:
-        print(f"Error loading workflows at startup: {e}")
 
-# Load workflows at startup using the simple method
-load_user_workflows_simple()
+
+# --- Main entry point ---
+
+# Initialize plugins at startup
+def load_plugins_at_startup():
+    """Load all plugins using the new simplified system."""
+    try:
+        from app.utils.plugins_manager import PluginsManager
+        
+        manager = PluginsManager()
+        manager.load_all_plugins()
+        
+        print(f"Loaded plugins at startup: {manager.get_loaded_plugins_count()} total")
+        
+    except Exception as e:
+        print(f"Error loading plugins at startup: {e}")
+
+# Load plugins at startup
+load_plugins_at_startup()
 
 if __name__ == '__main__':
     os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)
