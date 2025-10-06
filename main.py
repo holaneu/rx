@@ -10,11 +10,7 @@ from pathlib import Path
 import time
 import threading
 
-# Add user folder to Python path for imports
-_app_root = Path(__file__).parent
-_user_path = _app_root / "user"
-if _user_path.exists() and str(_user_path) not in sys.path:
-    sys.path.insert(0, str(_user_path))
+# Note: Legacy user folder path removed - now using plugins/ directory only
 
 # Import workflows registry from the centralized location
 from app.utils.registries import WORKFLOWS_REGISTRY
@@ -56,20 +52,40 @@ def active_page(current_page, page_name):
 # Helper function to serialize workflows for templates (removes function objects)
 def get_workflows_catalog():
     """Return workflows registry without function objects for template rendering."""
-    return {
-        workflow_id: {key: value for key, value in workflow_data.items() if key != "function"}
-        for workflow_id, workflow_data in WORKFLOWS_REGISTRY.items()
-    }
+    try:
+        if not WORKFLOWS_REGISTRY:
+            print("Warning: WORKFLOWS_REGISTRY is empty, attempting to reload plugins...")
+            # Try to reload plugins if registry is empty
+            from app.utils.plugins_manager import PluginsManager
+            manager = PluginsManager()
+            manager.load_all_plugins()
+            
+        return {
+            workflow_id: {key: value for key, value in workflow_data.items() if key != "function"}
+            for workflow_id, workflow_data in WORKFLOWS_REGISTRY.items()
+        }
+    except Exception as e:
+        print(f"Error in get_workflows_catalog: {e}")
+        # Return empty dict to prevent 500 error
+        return {}
 
 
 # Routes
 @app.route('/')
 def page_index():
-    return render_template('index.html', workflows=get_workflows_catalog())
+    try:
+        return render_template('index.html', workflows=get_workflows_catalog())
+    except Exception as e:
+        print(f"Error in page_index: {e}")
+        return f"Application starting up, please refresh in a moment. Error: {e}", 503
 
 @app.route('/workflows')
 def page_workflows():
-    return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
+    try:
+        return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
+    except Exception as e:
+        print(f"Error in page_workflows: {e}")
+        return f"Application starting up, please refresh in a moment. Error: {e}", 503
 
 # redirect to handle the trailing slash issue
 @app.route('/files/')
@@ -448,7 +464,15 @@ def load_plugins_at_startup():
         print(f"Traceback: {traceback.format_exc()}")
 
 # Load plugins at startup
-load_plugins_at_startup()
+try:
+    load_plugins_at_startup()
+    print("✅ Plugin loading completed successfully")
+except Exception as e:
+    import traceback
+    print(f"❌ Critical error during plugin loading: {e}")
+    print(f"Traceback: {traceback.format_exc()}")
+    # Don't let plugin loading failure prevent app from starting
+    pass
 
 if __name__ == '__main__':
     os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)
