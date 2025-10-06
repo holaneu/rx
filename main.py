@@ -343,7 +343,7 @@ def diagnostic():
             "message": f"Diagnostic failed: {str(e)}"
         })
 
-@app.route('/api/reload_plugins', methods=['POST'])
+@app.route('/api/reload_plugins', methods=['GET', 'POST'])
 def reload_plugins():
     """Reload plugins using the new simplified plugins system."""
     try:

@@ -31,8 +31,10 @@ class PluginsManager:
         registry = self.config.get_registry_for_plugin_type(plugin_type)
         
         if not plugin_dir.exists():
+            print(f"Warning: Plugin directory does not exist: {plugin_dir}")
             return
         if registry is None:
+            print(f"Warning: No registry found for plugin type: {plugin_type}")
             return
         
         # Clear existing plugin modules from registry
