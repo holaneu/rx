@@ -1,0 +1,1 @@
+"""Prompts plugins - automatically loaded by PluginsManager."""
