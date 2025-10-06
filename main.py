@@ -266,7 +266,44 @@ def api_get_workflows_registry():
             ResponseKey.MESSAGE.value: f"[{__name__}]: {str(e)}.",
         }
 
+
+@app.route('/api/debug/paths', methods=['GET'])
+def debug_paths():
+    """Debug endpoint to check path resolution and working directory."""
+    import os
+    from pathlib import Path
     
+    try:
+        # Get current working directory
+        cwd = os.getcwd()
+        
+        # Get this file's location 
+        main_file = Path(__file__).resolve()
+        main_dir = main_file.parent
+        
+        # Test PluginsConfig path resolution
+        from app.configs.plugins_config import PluginsConfig
+        config = PluginsConfig()
+        
+        return jsonify({
+            "status": "success",
+            "paths": {
+                "cwd": cwd,
+                "main_file": str(main_file),
+                "main_dir": str(main_dir), 
+                "plugins_config_file": str(Path(config.__module__.replace('.', '/')).with_suffix('.py')),
+                "plugins_root_from_config": str(config.PLUGINS_ROOT),
+                "plugins_root_exists": config.PLUGINS_ROOT.exists(),
+                "__file__": __file__ if '__file__' in globals() else "Not available"
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error", 
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
 
 
 @app.route('/api/diagnostic', methods=['GET'])
@@ -281,14 +318,16 @@ def diagnostic():
         cwd = os.getcwd()
         python_path = sys.path[:5]  # First 5 entries
         
-        # Check plugins directory
-        plugins_dir = Path("plugins")
-        plugins_dir_abs = plugins_dir.resolve()
+        # Check plugins directory using actual PluginsConfig
+        from app.configs.plugins_config import PluginsConfig
+        config = PluginsConfig()
+        plugins_dir_abs = config.PLUGINS_ROOT
+        plugins_dir = plugins_dir_abs.name  # Just the directory name for display
         
         # Check individual plugin type directories
-        workflows_dir = plugins_dir / "workflows"  
-        prompts_dir = plugins_dir / "prompts"
-        tools_dir = plugins_dir / "tools"
+        workflows_dir = config.get_plugin_directory("workflows")
+        prompts_dir = config.get_plugin_directory("prompts")  
+        tools_dir = config.get_plugin_directory("tools")
         
         # Count plugin files
         workflow_files = []
@@ -315,7 +354,7 @@ def diagnostic():
                 "python_path": python_path,
                 "plugins_dir": str(plugins_dir),
                 "plugins_dir_abs": str(plugins_dir_abs),
-                "plugins_dir_exists": plugins_dir.exists()
+                "plugins_dir_exists": plugins_dir_abs.exists()
             },
             "plugin_directories": {
                 "workflows_dir_exists": workflows_dir.exists(),
@@ -389,7 +428,14 @@ def reload_plugins():
 def load_plugins_at_startup():
     """Load all plugins using the new simplified system."""
     try:
+        print("Starting plugin loading at startup...")
         from app.utils.plugins_manager import PluginsManager
+        from app.configs.plugins_config import PluginsConfig
+        
+        # Debug path info
+        config = PluginsConfig()
+        print(f"Plugins root path: {config.PLUGINS_ROOT}")
+        print(f"Plugins root exists: {config.PLUGINS_ROOT.exists()}")
         
         manager = PluginsManager()
         manager.load_all_plugins()
@@ -397,7 +443,9 @@ def load_plugins_at_startup():
         print(f"Loaded plugins at startup: {manager.get_loaded_plugins_count()} total")
         
     except Exception as e:
+        import traceback
         print(f"Error loading plugins at startup: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
 
 # Load plugins at startup
 load_plugins_at_startup()
