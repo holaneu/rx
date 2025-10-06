@@ -1,0 +1,186 @@
+"""
+Text File Management Utilities
+
+This module provides a comprehensive set of functions for managing plain text files,
+including CRUD operations and additional utilities for file manipulation.
+"""
+
+from pathlib import Path
+from typing import Union, Optional
+
+from app.tools._core import tool
+
+
+@tool(name="Create Text File", description="Creates a new text file with optional content")
+def create_file(path: Union[str, Path], content: str = "", overwrite: bool = False) -> None:
+    """
+    Create a new text file with the specified content.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        content: Content to write to the file (default: empty string)
+        overwrite: Whether to overwrite the file if it exists (default: False)
+        
+    Raises:
+        Exception: If the file already exists and overwrite is False
+    """
+    path = Path(path)
+    
+    try:
+        if path.exists() and not overwrite:
+            raise Exception(f"File '{path}' already exists. Set overwrite=True to overwrite.")
+        
+        # Create parent directories if they don't exist
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write content to file
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except Exception as e:
+        raise Exception(f"Failed to create file '{path}': {str(e)}") from e
+
+
+@tool(name="Read Text File", description="Reads content from a text file")
+def read_file(path: Union[str, Path], create_if_missing: bool = False, default_content: str = "") -> str:
+    """
+    Read the contents of a text file.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        create_if_missing: Whether to create the file if it doesn't exist (default: False)
+        default_content: Content to write if the file is created (default: empty string)
+        
+    Returns:
+        The contents of the file as a string
+        
+    Raises:
+        Exception: If the file doesn't exist and create_if_missing is False
+    """
+    path = Path(path)
+    
+    try:
+        if not path.exists():
+            if create_if_missing:
+                create_file(path, default_content)
+                return default_content
+            else:
+                raise Exception(f"File '{path}' does not exist.")
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception as e:
+        raise Exception(f"Failed to read file '{path}': {str(e)}") from e
+
+
+@tool(name="Update Text File", description="Updates content of an existing text file")
+def update_file(path: Union[str, Path], content: str) -> None:
+    """
+    Update the contents of an existing text file.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        content: New content to write to the file
+        
+    Raises:
+        Exception: If the file doesn't exist
+    """
+    path = Path(path)
+    
+    try:
+        if not path.exists():
+            raise Exception(f"File '{path}' does not exist.")
+        
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except Exception as e:
+        raise Exception(f"Failed to update file '{path}': {str(e)}") from e
+
+
+@tool(name="Delete Text File", description="Deletes a text file")
+def delete_file(path: Union[str, Path]) -> None:
+    """
+    Delete a text file.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        
+    Raises:
+        Exception: If the file doesn't exist
+    """
+    path = Path(path)
+    
+    try:
+        if not path.exists():
+            raise Exception(f"File '{path}' does not exist.")
+        
+        path.unlink()
+    except Exception as e:
+        raise Exception(f"Failed to delete file '{path}': {str(e)}") from e
+
+
+@tool(name="Rename Text File", description="Renames a text file")
+def rename_file(path: Union[str, Path], new_name: str) -> Path:
+    """
+    Rename a text file, preserving its directory.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        new_name: New name for the file (without directory)
+        
+    Returns:
+        Path object pointing to the renamed file
+        
+    Raises:
+        Exception: If the file doesn't exist
+    """
+    path = Path(path)
+    
+    try:
+        if not path.exists():
+            raise Exception(f"File '{path}' does not exist.")
+        
+        new_path = path.parent / new_name
+        path.rename(new_path)
+        return new_path
+    except Exception as e:
+        raise Exception(f"Failed to rename file '{path}' to '{new_name}': {str(e)}") from e
+
+
+@tool(name="Add Content To Text File", description="Adds content to a text file (append or prepend)")
+def add_to_file(path: Union[str, Path], content: str, mode: str = "append", delimiter: str = "\n") -> None:
+    """
+    Add content to an existing text file, either appending or prepending.
+    
+    Args:
+        path: Path to the file (string or Path object)
+        content: Content to add to the file
+        mode: How to add content - "append" (at end) or "prepend" (at beginning) (default: "append")
+        delimiter: Delimiter to add before/after the new content (default: newline)
+        
+    Raises:
+        Exception: If the file doesn't exist or an invalid mode is specified
+    """
+    path = Path(path)
+    
+    try:
+        if not path.exists():
+            raise Exception(f"File '{path}' does not exist.")
+        
+        if mode not in ["append", "prepend"]:
+            raise Exception(f"Invalid mode '{mode}'. Use 'append' or 'prepend'.")
+        
+        # Read current content
+        with open(path, 'r', encoding='utf-8') as f:
+            current_content = f.read()
+        
+        # Prepare new content based on mode
+        if mode == "append":
+            new_content = current_content + delimiter + content if current_content else content
+        else:  # prepend
+            new_content = content + delimiter + current_content if current_content else content
+        
+        # Write updated content
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+    except Exception as e:
+        raise Exception(f"Failed to add content to file '{path}': {str(e)}") from e
