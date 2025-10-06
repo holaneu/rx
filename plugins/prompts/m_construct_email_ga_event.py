@@ -3,7 +3,7 @@ from app.prompts import prompt, render_prompt_with_context
 @prompt()
 def construct_email_ga_event(*, input: str):
     """Generates a developer email with metaHierarchy examples based on GA event specification from email, table, or both."""
-    from user.prompts import output_without_comments
+    from plugins.prompts.m_output_without_comments import output_without_comments
     output_format1 = output_without_comments()
     _prompt = """
 You are an assistant that receives as input:

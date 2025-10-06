@@ -7,8 +7,8 @@ def translate_cs_en_basic(task_id, input, model="openai/gpt-4.1"):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import translate_cs_en_basic
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_translate_cs_en_basic import translate_cs_en_basic
 
         yield wf.stream_msg(msgTitle="Workflow Started", msgBody=f"Task ID: {task_id}, Input: {input}, Model: {model}")
 

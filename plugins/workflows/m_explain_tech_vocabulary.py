@@ -7,8 +7,8 @@ def explain_tech_vocabulary(task_id, model="openai/gpt-4.1-mini"):
     try:
         wf = Workflow(task_id=task_id)
         
-        from user.tools import open_file, split_clean, fetch_llm, save_to_external_file2
-        from user.prompts import explain_swe_terms
+        from plugins.tools.m_included import open_file, split_clean, fetch_llm, save_to_external_file2
+        from plugins.prompts.m_explain_swe_terms import explain_swe_terms
         from app.configs.app_config import APP_SETTINGS
         from app.utils.response_types import ResponseKey, ResponseStatus
 

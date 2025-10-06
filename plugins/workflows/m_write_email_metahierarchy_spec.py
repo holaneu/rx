@@ -7,8 +7,8 @@ def write_email_metahierarchy_spec(task_id, input, model=None):
     try:
         wf = Workflow(task_id=task_id)
         
-        from user.tools import fetch_llm
-        from user.prompts import construct_email_ga_event
+        from plugins.tools.m_included import fetch_llm
+        from plugins.prompts.m_construct_email_ga_event import construct_email_ga_event
 
         llm_data = fetch_llm(input=construct_email_ga_event(input=input), model_name=model).get("data", {}).get("content", "")
 

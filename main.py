@@ -337,16 +337,18 @@ def debug_simple_test():
         
         # Import ALL workflow modules directly (this bypasses the module manager)
         workflows_path = user_path / "workflows"
-        if workflows_path.exists():
-            for py_file in workflows_path.glob("*.py"):
+        # Updated to use plugins path
+        plugins_workflows_path = Path("plugins/workflows")
+        if plugins_workflows_path.exists():
+            for py_file in plugins_workflows_path.glob("*.py"):
                 if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
                     try:
-                        module_name = f"user.workflows.{py_file.stem}"
+                        module_name = f"plugins.workflows.{py_file.stem}"
                         # Remove from sys.modules if already imported
                         if module_name in sys.modules:
                             del sys.modules[module_name]
                         # Import the module directly
-                        exec(f"from user.workflows import {py_file.stem}")
+                        exec(f"from plugins.workflows import {py_file.stem}")
                     except Exception as e:
                         print(f"Failed to import {py_file.name}: {e}")
         
@@ -388,16 +390,18 @@ def debug_reload_simple():
         imported_count = 0
         errors = []
         
-        if workflows_path.exists():
-            for py_file in workflows_path.glob("*.py"):
+        # Updated to use plugins path  
+        plugins_workflows_path = Path("plugins/workflows")
+        if plugins_workflows_path.exists():
+            for py_file in plugins_workflows_path.glob("*.py"):
                 if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
                     try:
-                        module_name = f"user.workflows.{py_file.stem}"
+                        module_name = f"plugins.workflows.{py_file.stem}"
                         # Remove from sys.modules if already imported
                         if module_name in sys.modules:
                             del sys.modules[module_name]
                         # Import the module directly
-                        exec(f"from user.workflows import {py_file.stem}")
+                        exec(f"from plugins.workflows import {py_file.stem}")
                         imported_count += 1
                     except Exception as e:
                         errors.append(f"{py_file.name}: {str(e)}")
@@ -437,18 +441,18 @@ def load_user_workflows_simple():
         # Import workflow dependencies first
         from app.workflows import workflow, Workflow
         
-        # Import ALL workflow modules directly
-        workflows_path = user_path / "workflows"
-        if workflows_path.exists():
-            for py_file in workflows_path.glob("*.py"):
+        # Import ALL workflow modules directly from plugins
+        plugins_workflows_path = Path("plugins/workflows")
+        if plugins_workflows_path.exists():
+            for py_file in plugins_workflows_path.glob("*.py"):
                 if py_file.name not in {"__init__.py", "_core.py", "core.py"}:
                     try:
-                        module_name = f"user.workflows.{py_file.stem}"
+                        module_name = f"plugins.workflows.{py_file.stem}"
                         # Remove from sys.modules if already imported
                         if module_name in sys.modules:
                             del sys.modules[module_name]
                         # Import the module directly
-                        exec(f"from user.workflows import {py_file.stem}")
+                        exec(f"from plugins.workflows import {py_file.stem}")
                     except Exception:
                         # Continue with other modules if one fails
                         pass

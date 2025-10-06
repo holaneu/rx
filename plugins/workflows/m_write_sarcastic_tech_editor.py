@@ -7,7 +7,7 @@ def write_sarcastic_tech_editor(task_id, input, model=None):
     try:        
         wf = Workflow(task_id=task_id)
 
-        from user.tools import fetch_llm, save_to_file, user_data_files_path
+        from plugins.tools.m_included import fetch_llm, save_to_file, user_data_files_path
         from app.prompts.m_sarcastic_tech_editor import sarcastic_tech_editor
         
         # Fetch response from LLM

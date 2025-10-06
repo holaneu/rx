@@ -7,7 +7,7 @@ def mix_edu_cards(task_id):
     try:
         wf = Workflow(task_id=task_id)
         
-        from user.tools import open_file, split_clean, save_to_external_file2, formatted_datetime
+        from plugins.tools.m_included import open_file, split_clean, save_to_external_file2, formatted_datetime
         from app.configs.app_config import APP_SETTINGS
         import os
         import random            

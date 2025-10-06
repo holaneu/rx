@@ -6,8 +6,8 @@ def explain_simply_lexicon(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import explain_simply_lexicon
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_explain_simply_lexicon import explain_simply_lexicon
 
         ai_data = fetch_llm(input=explain_simply_lexicon(input=input.strip()), model_name=model).get("data", {}).get("content", "")
 

@@ -7,7 +7,7 @@ def ask_llm_basic(task_id, input, model=None):
     try:        
         wf = Workflow(task_id=task_id)
 
-        from user.tools import fetch_llm
+        from plugins.tools.m_included import fetch_llm
 
         llm_data = fetch_llm(input=input.strip(), model_name=model).get("data", {}).get("content", "")
 

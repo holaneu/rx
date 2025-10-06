@@ -6,7 +6,7 @@ def save_quick_note(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path
+        from plugins.tools.m_included import save_to_file, user_data_files_path
 
         note = input.strip()
 

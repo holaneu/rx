@@ -5,7 +5,7 @@ from app.prompts import prompt, render_prompt_with_context
 def generate_system_prompt(*, input: str):
     """Generates detailed instructions for different types of assistants."""
 
-    from user.prompts import output_without_comments
+    from plugins.prompts.m_output_without_comments import output_without_comments
 
     output_format1 = output_without_comments()
     

@@ -7,8 +7,8 @@ def summarize_video_transcript(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import summarize_video_transcript
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_summarize_video_transcript import summarize_video_transcript
 
         ai_data = fetch_llm(input=summarize_video_transcript(input=input.strip()), model_name=model ).get("data", {}).get("content", "")
 

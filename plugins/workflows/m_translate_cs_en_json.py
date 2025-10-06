@@ -7,8 +7,8 @@ def translate_cs_en_json(input, task_id, model="openai/gpt-4.1"):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import translate_cs_en_json2
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_translate_cs_en_json2 import translate_cs_en_json2
         import json
 
         yield wf.stream_msg(msgTitle="Workflow Started", msgBody=f"Model: {model}")

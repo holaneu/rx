@@ -7,7 +7,7 @@ def tool_calling_test(task_id, input, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import fetch_llm
+        from plugins.tools.m_included import fetch_llm
 
         def search_gutenberg_books(search_terms):
             search_query = " ".join(search_terms)

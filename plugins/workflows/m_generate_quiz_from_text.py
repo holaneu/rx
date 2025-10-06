@@ -8,8 +8,9 @@ def generate_quiz_from_text(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, generate_id, current_datetime_iso, fetch_llm
-        from user.prompts import generate_qna_from_text, generate_quiz_json_from_qna
+        from plugins.tools.m_included import save_to_file, user_data_files_path, generate_id, current_datetime_iso, fetch_llm
+        from plugins.prompts.m_generate_qna_from_text import generate_qna_from_text
+        from plugins.prompts.m_generate_quiz_json_from_qna import generate_quiz_json_from_qna
 
         questions = fetch_llm(input=generate_qna_from_text(input=input.strip()), model_name=model, structured_output=True).get("data", {}).get("content", "")
         

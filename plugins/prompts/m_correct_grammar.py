@@ -4,7 +4,7 @@ from app.prompts import prompt, render_prompt_with_context
 @prompt()
 def correct_grammar(*, input: str, extra_instructions: str = None):
     """Corrects grammar where needed and returns corrected text"""
-    from user.prompts import output_without_comments
+    from plugins.prompts.m_output_without_comments import output_without_comments
     output_format1 = output_without_comments()
     _prompt = """    
 Instructions: 

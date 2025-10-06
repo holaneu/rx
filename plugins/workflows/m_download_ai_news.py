@@ -7,7 +7,7 @@ def download_ai_news(task_id ):
     try:
         wf = Workflow(task_id=task_id)
         
-        from user.tools import download_news_newsapi, split_clean, save_to_file, user_data_files_path, open_file
+        from plugins.tools.m_included import download_news_newsapi, split_clean, save_to_file, user_data_files_path, open_file
         import json                    
 
         open_file_result = open_file("ai_news.md")

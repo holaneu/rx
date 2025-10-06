@@ -7,8 +7,10 @@ def write_story_reviewed(input, task_id, model="openai/gpt-4.1"):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import write_story_v1, review_story, update_story
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_write_story import write_story_v1
+        from plugins.prompts.m_review_story import review_story
+        from plugins.prompts.m_update_story import update_story
 
         # step 1: Generate the story
         story = fetch_llm(input=write_story_v1(story_prompt=input.strip()), model_name=model).get("data", "").get("content", "")

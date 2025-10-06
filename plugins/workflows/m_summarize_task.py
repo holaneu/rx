@@ -6,8 +6,8 @@ def summarize_task(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import summarize_task
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_summarize_task import summarize_task
         import json
         
         entry = fetch_llm(input=summarize_task(input=input.strip()), model_name=model, structured_output=True).get("data", {}).get("content", "")

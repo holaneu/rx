@@ -7,8 +7,8 @@ def analyze_situation(input, task_id, model=None):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
-        from user.prompts import analyze_situation
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_analyze_situation import analyze_situation
 
         ai_data = fetch_llm(model_name=model, input=analyze_situation(input=input.strip())).get("data", {}).get("content", "")
 

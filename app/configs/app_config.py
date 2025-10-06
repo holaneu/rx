@@ -23,6 +23,5 @@ class APP_SETTINGS:
     USER_DATA_FILES_PATH_STR = str(USER_DATA_FILES_PATH)
     
     EXTERNAL_STORAGE_1_LOCAL_PATH = os.getenv("EXTERNAL_STORAGE_1_LOCAL_PATH")
-    CUSTOM_MODULES_FOLDERS = ["workflows", "assistants", "prompts", "tools"]
-    CUSTOM_WORKFLOWS_PATH_LIST = ["user_data", USER_SETTINGS.USER_ID, "custom_workflows"]    
+    CUSTOM_MODULES_FOLDERS = ["workflows", "prompts", "tools"]
     

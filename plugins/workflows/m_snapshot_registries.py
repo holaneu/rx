@@ -9,7 +9,7 @@ def snapshot_registries(task_id):
         
         from app.utils.registries import WORKFLOWS_REGISTRY, ASSISTANTS_REGISTRY, TOOLS_REGISTRY, PROMPTS_REGISTRY
         import json
-        from user.tools import save_to_file, user_data_files_path
+        from plugins.tools.m_included import save_to_file, user_data_files_path
 
         workflows = {
             name: {k: v for k, v in workflow.items() if k != 'function'}

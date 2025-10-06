@@ -7,8 +7,8 @@ def write_story(input, task_id, model="openai/gpt-4.1"):
     try:
         wf = Workflow(task_id=task_id)
 
-        from user.prompts import write_story_v1
-        from user.tools import save_to_file, user_data_files_path, fetch_llm
+        from plugins.prompts.m_write_story import write_story_v1
+        from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
 
         yield wf.stream_msg(msgTitle="Workflow started", msgBody="Generating story...")        
 
