@@ -1,4 +1,4 @@
-# Expose the registry directly
+# Expose core functionality directly
 from ._core import tool
 
 # --- STATIC IMPORTS (Auto-generated section starts) ---
@@ -6,12 +6,7 @@ from ._core import tool
 # AUTO-GENERATED-IMPORTS-END
 # --- END OF AUTO GENERATED ---
 
-
-# Load user-defined modules for this package using new system
-from app.configs.module_config import ModuleConfig, PackageTypes
-config = ModuleConfig()
-registry = config.get_registry_for_package(PackageTypes.TOOLS.value)  # Use .value to get string
-if registry is not None:
-    from app.utils.module_manager import ModuleManager
-    manager = ModuleManager()
-    manager._load_dynamic_modules_for_package(PackageTypes.TOOLS.value, registry)  # Use .value
+# Load plugins using simplified system
+from app.utils.plugins_manager import PluginsManager
+plugins_manager = PluginsManager()
+plugins_manager.load_plugins_for_type("tools")

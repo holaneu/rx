@@ -12,7 +12,6 @@
 
   <div class="container">
     <header>
-        <h1>Workflows</h1>       
     </header> 
     
     <main>
@@ -31,14 +30,18 @@
                 <option value="{{ id }}">{{ workflow.title }}</option>
                 {% endfor %}
             </select>
-            
+        </div>
+
+        <div class="form-row"></div>    
             <select id="modelSelect">
                 <option value="" disabled selected>Keep default model</option>
                 {% for model in llm_models %}
                 <option value="{{ model.name }}">{{ model.name }}</option>
                 {% endfor %}
             </select>
+        </div>
 
+        <div class="form-row">
             <button id="startWorkflowButton">Run workflow</button>
         </div>
 
@@ -74,26 +77,6 @@
     <footer></footer>
 
   </div>     
-
-  <script>
-    // --- DEBUGGING ---
-    const workflowsData = {{ workflows | tojson }};
-    console.log("DEBUG: Workflows data received by template:", workflowsData);
-    document.addEventListener('DOMContentLoaded', (event) => {
-      const header = document.querySelector('.container header');
-      if (header) {
-        const debugInfo = document.createElement('p');
-        debugInfo.textContent = `DEBUG: Template received ${Object.keys(workflowsData).length} workflows.`;
-        debugInfo.style.color = 'orange';
-        debugInfo.style.fontWeight = 'bold';
-        debugInfo.style.border = '1px solid orange';
-        debugInfo.style.padding = '10px';
-        debugInfo.style.marginTop = '10px';
-        header.insertAdjacentElement('afterend', debugInfo);
-      }
-    });
-    // --- END DEBUGGING ---
-  </script>
 
   <script src="{{ url_for('static', filename='js/workflows.js') }}"></script>
 

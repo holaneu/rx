@@ -18,7 +18,11 @@ const domRunningWorkflowMsg = document.getElementById('running-workflow-msg');
 
 function populateWorkflowSelect(workflows) {
     domWorkflowSelect.innerHTML = '<option value="" disabled selected>Select workflow ...</option>';
-    Object.entries(workflows).forEach(([id, wf]) => {
+    // Sort workflows alphabetically by title
+    const sortedWorkflows = Object.entries(workflows).sort(([, a], [, b]) => 
+        a.title.localeCompare(b.title)
+    );
+    sortedWorkflows.forEach(([id, wf]) => {
         const option = document.createElement('option');
         option.value = id;
         option.textContent = wf.title;
