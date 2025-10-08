@@ -1,10 +1,10 @@
 {% if breadcrumbs or current_folder is none %}
 <div class="breadcrumbs">
-    <a href="{{ url_for('files') }}" class="breadcrumb-item">user</a>
+    <a href="{{ url_for('files.files') }}" class="breadcrumb-item">user</a>
     {% if breadcrumbs %}
         {% for folder in breadcrumbs %}
             <span class="breadcrumb-separator">›</span>
-            <a href="{{ url_for('files', item_id=folder.id) }}" class="breadcrumb-item">{{ folder.title }}</a>
+            <a href="{{ url_for('files.files', item_id=folder.id) }}" class="breadcrumb-item">{{ folder.title }}</a>
         {% endfor %}
     {% endif %}
 </div>

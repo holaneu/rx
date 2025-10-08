@@ -1,38 +1,57 @@
-"""
-API Blueprint - All REST API endpoints
-
-This blueprint handles all API routes with /api prefix:
-- Task management (/api/start_task, /api/continue_task)
-- Tools testing (/api/tools/test)
-- System diagnostics (/api/diagnostic)
-- Plugin management (/api/reload_plugins)
-- Workflow registry access (/api/get_workflows_registry)
-
-Separated from UI routes to provide:
-- Clean API organization
-- Consistent JSON responses
-- Dedicated error handling for API endpoints
-- CORS configuration isolated to API routes
-"""
+from flask import Flask, render_template, request, jsonify, Response, abort, redirect, url_for
+from flask_cors import CORS
 
 import uuid
+import json
+from dotenv import load_dotenv
+import os
+import sys
+from pathlib import Path
 import time
-import inspect
-from flask import Blueprint, request, jsonify
-from app.core import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
+import threading
+
+# Note: Legacy user folder path removed - now using plugins/ directory only
+
+# Import workflows registry from the new core structure
+from app.core import WORKFLOWS_REGISTRY
 from app.utils.response_types import response_output_error, ResponseKey, ResponseStatus
+from app.storage.manager import FileStorageManager
+from app.configs.app_config import APP_SETTINGS
+from app.configs.llm_config import llm_models
 
 
-# Create API blueprint with '/api' prefix
-api_blueprint = Blueprint('api', __name__, url_prefix='/api')
+# ----------------------
+# Flask app setup
 
-# In‐memory store for generator functions (shared across application)
-# This needs to be accessible from main.py for backward compatibility
+app = Flask(__name__, static_folder='app/ui/static', template_folder='app/ui/templates')
+
+# Enable CORS for API routes only
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# Setup Secret Keys
+dotenv_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+
+# In‐memory stores for this example
 generators: dict[str, any] = {}
 
+# File storage manager
+FILES_FOLDER = APP_SETTINGS.USER_DATA_PATH
+# File storage manager setup
+file_manager = FileStorageManager(base_path=FILES_FOLDER, skip_folders=["__pycache__"])
 
+# Note: Removed threading lock for PythonAnywhere compatibility
+# If concurrent access becomes an issue, consider using file-based locking instead
+
+
+@app.template_filter('active_page')
+def active_page(current_page, page_name):
+    return 'active' if current_page == page_name else ''
+
+# Helper function to serialize workflows for templates (removes function objects)
 def get_workflows_catalog():
-    """Return workflows registry without function objects for API responses."""
+    """Return workflows registry without function objects for template rendering."""
     try:
         if not WORKFLOWS_REGISTRY:
             print("Warning: WORKFLOWS_REGISTRY is empty, attempting to reload plugins...")
@@ -57,10 +76,103 @@ def get_workflows_catalog():
         return {}
 
 
-@api_blueprint.route("/start_task", methods=["POST"])
-def start_task():
-    """Start a new workflow task."""
+# Routes
+@app.route('/')
+def page_index():
     try:
+        return render_template('index.html', workflows=get_workflows_catalog())
+    except Exception as e:
+        print(f"Error in page_index: {e}")
+        return f"Application starting up, please refresh in a moment. Error: {e}", 503
+
+@app.route('/workflows')
+def page_workflows():
+    try:
+        return render_template('workflows.html', workflows=get_workflows_catalog(), llm_models=llm_models)
+    except Exception as e:
+        print(f"Error in page_workflows: {e}")
+        return f"Application starting up, please refresh in a moment. Error: {e}", 503
+
+# redirect to handle the trailing slash issue
+@app.route('/files/')
+def files_with_slash():
+    return redirect(url_for('files'))
+
+@app.route('/files')
+@app.route('/files/folder/<item_id>')
+def files(item_id=None):
+    structure = file_manager.get_structure()
+    items_list = structure['items']
+    
+    # Get current folder and build breadcrumb path
+    current_folder = None
+    breadcrumbs = []
+    
+    if item_id:
+        current_folder = next((item for item in items_list if item.id == item_id), None)
+        if not current_folder or current_folder.type != 'folder':
+            abort(404)
+            
+        # Build breadcrumbs
+        temp_folder = current_folder
+        while hasattr(temp_folder, 'parent'):
+            parent = next((item for item in items_list if item.id == temp_folder.parent), None)
+            if parent:
+                breadcrumbs.insert(0, parent)
+                temp_folder = parent
+            else:
+                break
+        breadcrumbs.append(current_folder)
+    
+    # Filter items for current folder
+    filtered_items = [
+        item for item in items_list 
+        if (not item_id and not hasattr(item, 'parent')) or
+           (hasattr(item, 'parent') and item.parent == item_id)
+    ]
+    
+    return render_template('files.html', 
+                         items=filtered_items, 
+                         current_folder=current_folder,
+                         breadcrumbs=breadcrumbs)
+
+
+@app.route('/files/file/<item_id>')
+def files_file_detail(item_id):
+    structure = file_manager.get_structure()
+    item = next((item for item in structure['items'] if item.id == item_id), None)
+    
+    if not item or item.type != 'file':
+        abort(404)
+    
+    # Generate breadcrumbs by traversing up through parent folders
+    breadcrumbs = []
+    if not hasattr(item, 'parent'):
+        # If item has no parent, it's in the root folder
+        breadcrumbs = [{'id': None, 'name': 'root', 'type': 'folder'}]
+    else:
+        current = next((i for i in structure['items'] if i.id == item.parent), None)
+        while current:
+            breadcrumbs.insert(0, current)
+            current = next((i for i in structure['items'] if i.id == current.parent), None) if hasattr(current, 'parent') else None
+
+    try:
+        full_path = Path(FILES_FOLDER) / item.file_path
+        with full_path.open('r', encoding='utf-8') as f:
+            content = f.read()
+        return render_template('files_file_detail.html', item=item, content=content, breadcrumbs=breadcrumbs)
+    except Exception as e:
+        abort(500)
+
+
+# -------------------------------
+# --- API routes ---
+# -------------------------------
+
+@app.route("/api/start_task", methods=["POST"])
+def start_task():
+    try:
+        import inspect
         task_id = str(uuid.uuid4())
         data = request.json
         if not data or 'workflow_id' not in data:
@@ -95,6 +207,8 @@ def start_task():
         generator_func = workflow['function'](**kwargs)
         generators[task_id] = generator_func
         
+        #response_from_generator = next(generator_func)
+
         # Check if the result is a generator
         if hasattr(generator_func, '__iter__') and hasattr(generator_func, '__next__'):
             # Kick off the generator until first yield
@@ -107,9 +221,8 @@ def start_task():
         return jsonify(response_output_error({ResponseKey.ERROR.value: str(e)})), 500
 
 
-@api_blueprint.route("/continue_task", methods=["POST"])
+@app.route("/api/continue_task", methods=["POST"])
 def continue_task():
-    """Continue an existing workflow task."""
     data = request.json
     task_id = data.get("task_id")
     generator_func = generators.get(task_id)
@@ -124,9 +237,8 @@ def continue_task():
         return jsonify(getattr(e, "value", None) or {})
 
 
-@api_blueprint.route('/tools/test', methods=['POST'])
-def test_tools():
-    """Test endpoint for tool functionality."""
+@app.route('/api/tools/test', methods=['POST'])
+def test():
     try:
         data = request.json
         input_message = data.get("message", "")
@@ -158,9 +270,9 @@ def test_tools():
             } 
         }), 500
 
-
-@api_blueprint.get("/get_workflows_registry")
-def get_workflows_registry():
+# RENAME TO get_workflows_registry
+@app.get("/api/get_workflows_registry")
+def api_get_workflows_registry():
     """Return current workflow registry without function objects."""    
     try:
         workflows = get_workflows_catalog()
@@ -170,14 +282,15 @@ def get_workflows_registry():
             ResponseKey.MESSAGE.value: "Workflows registry retrieved successfully.",
         })
     except Exception as e:
-        return jsonify({
+        return {
             ResponseKey.STATUS.value: ResponseStatus.ERROR.value,
-            ResponseKey.ERROR.value: f"[get_workflows_registry]: {str(e)}.",
-            ResponseKey.MESSAGE.value: f"[get_workflows_registry]: {str(e)}.",
-        }), 500
+            ResponseKey.ERROR.value: f"[{__name__}]: {str(e)}.",
+            ResponseKey.MESSAGE.value: f"[{__name__}]: {str(e)}.",
+        }
 
 
-@api_blueprint.route('/diagnostic', methods=['GET'])
+
+@app.route('/api/diagnostic', methods=['GET'])
 def diagnostic():
     """Comprehensive diagnostic endpoint to debug plugin loading issues."""
     import os
@@ -189,7 +302,7 @@ def diagnostic():
         cwd = os.getcwd()
         python_path = sys.path[:5]  # First 5 entries
         
-        # Check plugins directory using actual PluginsConfig
+        # Check plugins directory using new core PluginsConfig
         from app.core import PluginsConfig
         config = PluginsConfig()
         plugins_dir_abs = config.PLUGINS_ROOT
@@ -206,7 +319,8 @@ def diagnostic():
             workflow_files = [f.name for f in workflows_dir.glob("*.py") 
                             if f.name not in {"__init__.py", "_core.py", "core.py"}]
         
-        # Check registries - already imported at top level
+        # Check registries from new core structure
+        from app.core import PROMPTS_REGISTRY, TOOLS_REGISTRY
         
         # Test plugin manager
         plugin_manager_error = None
@@ -252,12 +366,11 @@ def diagnostic():
             "message": f"Diagnostic failed: {str(e)}"
         })
 
-
-@api_blueprint.route('/reload_plugins', methods=['GET', 'POST'])
+@app.route('/api/reload_plugins', methods=['GET', 'POST'])
 def reload_plugins():
     """Reload plugins using the new simplified plugins system."""
     try:
-        from app.core import PluginsManager
+        from app.core import PluginsManager, PROMPTS_REGISTRY, TOOLS_REGISTRY
         
         # Clear existing registries
         WORKFLOWS_REGISTRY.clear()
@@ -287,5 +400,30 @@ def reload_plugins():
         })
 
 
-# Export blueprint for registration
-__all__ = ['api_blueprint', 'generators']
+
+# --- Main entry point ---
+
+
+
+# --- Main entry point ---
+
+# Initialize plugins at startup
+def load_plugins_at_startup():
+    """Load all plugins using the new core system."""
+    try:
+        from app.core import PluginsManager
+        
+        manager = PluginsManager()
+        manager.load_all_plugins()
+        
+        print(f"Loaded plugins at startup: {manager.get_loaded_plugins_count()} total")
+        
+    except Exception as e:
+        print(f"Error loading plugins at startup: {e}")
+
+# Load plugins at startup
+load_plugins_at_startup()
+
+if __name__ == '__main__':
+    os.makedirs(str(APP_SETTINGS.USER_DATA_PATH), exist_ok=True)
+    app.run(port=5005, debug=True)
