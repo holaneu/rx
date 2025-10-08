@@ -19,7 +19,7 @@ import uuid
 import time
 import inspect
 from flask import Blueprint, request, jsonify
-from app.utils.registries import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
+from app.core import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
 from app.utils.response_types import response_output_error, ResponseKey, ResponseStatus
 
 
@@ -36,7 +36,7 @@ def get_workflows_catalog():
         if not WORKFLOWS_REGISTRY:
             print("Warning: WORKFLOWS_REGISTRY is empty, attempting to reload plugins...")
             # Try to reload plugins if registry is empty
-            from app.utils.plugins_manager import PluginsManager
+            from app.core import PluginsManager
             manager = PluginsManager()
             manager.load_all_plugins()
             
@@ -189,7 +189,7 @@ def diagnostic():
         python_path = sys.path[:5]  # First 5 entries
         
         # Check plugins directory using actual PluginsConfig
-        from app.configs.plugins_config import PluginsConfig
+        from app.core import PluginsConfig
         config = PluginsConfig()
         plugins_dir_abs = config.PLUGINS_ROOT
         plugins_dir = plugins_dir_abs.name  # Just the directory name for display
@@ -205,13 +205,12 @@ def diagnostic():
             workflow_files = [f.name for f in workflows_dir.glob("*.py") 
                             if f.name not in {"__init__.py", "_core.py", "core.py"}]
         
-        # Check registries
-        from app.utils.registries import WORKFLOWS_REGISTRY, PROMPTS_REGISTRY, TOOLS_REGISTRY
+        # Check registries - already imported at top level
         
         # Test plugin manager
         plugin_manager_error = None
         try:
-            from app.utils.plugins_manager import PluginsManager
+            from app.core import PluginsManager
             manager = PluginsManager()
             manager.load_plugins_for_type("workflows")
         except Exception as e:
@@ -257,7 +256,7 @@ def diagnostic():
 def reload_plugins():
     """Reload plugins using the new simplified plugins system."""
     try:
-        from app.utils.plugins_manager import PluginsManager
+        from app.core import PluginsManager
         
         # Clear existing registries
         WORKFLOWS_REGISTRY.clear()

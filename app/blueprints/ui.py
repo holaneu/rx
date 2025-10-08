@@ -11,7 +11,7 @@ potential for different error handling strategies.
 """
 
 from flask import Blueprint, render_template
-from app.utils.registries import WORKFLOWS_REGISTRY
+from app.core import WORKFLOWS_REGISTRY
 from app.configs.llm_config import llm_models
 
 
@@ -25,7 +25,7 @@ def get_workflows_catalog():
         if not WORKFLOWS_REGISTRY:
             print("Warning: WORKFLOWS_REGISTRY is empty, attempting to reload plugins...")
             # Try to reload plugins if registry is empty
-            from app.utils.plugins_manager import PluginsManager
+            from app.core import PluginsManager
             manager = PluginsManager()
             manager.load_all_plugins()
             
