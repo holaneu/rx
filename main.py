@@ -29,8 +29,8 @@ from app.configs.app_config import APP_SETTINGS
 # Import blueprint registration system
 from app.blueprints import register_blueprints
 
-# Import generators from API blueprint to maintain shared state
-from app.blueprints.api import generators
+# Import generators from blueprints to maintain shared state
+from app.blueprints import generators
 
 
 # ----------------------
@@ -72,8 +72,8 @@ def create_app():
         from flask import url_for
         return {
             # Map old endpoint names to new blueprint endpoints
-            'page_index': lambda: url_for('ui.page_index'),
-            'page_workflows': lambda: url_for('ui.page_workflows'),
+            'page_index': lambda: url_for('base.page_index'),
+            'page_workflows': lambda: url_for('workflows.page_workflows'),
             'files': lambda item_id=None: url_for('files.files', item_id=item_id) if item_id else url_for('files.files'),
             'files_file_detail': lambda item_id: url_for('files.file_detail', item_id=item_id)
         }

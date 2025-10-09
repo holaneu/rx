@@ -1,13 +1,17 @@
 """
 Blueprints package - Flask application modularization
 
-This package contains all Flask blueprints for the application:
-- api: All REST API endpoints (/api/*)
-- ui: Main user-facing pages (/, /workflows)  
-- files: File system management (/files/*)
+This package contains all Flask blueprints for the application organized
+in a structured hierarchy:
+- ui/: Frontend/UI blueprints (base, workflows, files)
+- api/: Backend API blueprints (workflows, tools, plugins, system, files)
+- shared/: Common utilities and helpers
 
-Blueprints provide clean separation of concerns and make the application
-more maintainable and scalable.
+New structure provides:
+- Better organization by functional area
+- Separation of UI vs API concerns
+- Shared code reuse through helpers
+- Cleaner maintainability and scalability
 
 Usage:
     from app.blueprints import register_blueprints
@@ -15,9 +19,21 @@ Usage:
 """
 
 from flask import Flask
-from .api import api_blueprint
-from .ui import ui_blueprint  
-from .files import files_blueprint
+
+# Import UI blueprints
+from .ui import base_blueprint, workflows_blueprint, files_blueprint
+
+# Import API blueprints  
+from .api import (
+    workflows_api_blueprint, 
+    tools_api_blueprint,
+    plugins_api_blueprint,
+    system_api_blueprint,
+    files_api_blueprint
+)
+
+# Import shared utilities for backward compatibility
+from .shared import generators
 
 
 def register_blueprints(app: Flask) -> None:
@@ -27,25 +43,25 @@ def register_blueprints(app: Flask) -> None:
     Args:
         app (Flask): Flask application instance
     """
-    # Register API blueprint with /api prefix
-    app.register_blueprint(api_blueprint)
-    
-    # Register UI blueprint (no prefix - main pages)
-    app.register_blueprint(ui_blueprint)
-    
-    # Register files blueprint with /files prefix  
+    # Register UI blueprints (no prefix - main pages)
+    app.register_blueprint(base_blueprint)
+    app.register_blueprint(workflows_blueprint)
     app.register_blueprint(files_blueprint)
     
+    # Register API blueprints (all have /api prefix)
+    app.register_blueprint(workflows_api_blueprint)
+    app.register_blueprint(tools_api_blueprint)
+    app.register_blueprint(plugins_api_blueprint)
+    app.register_blueprint(system_api_blueprint)
+    app.register_blueprint(files_api_blueprint)
+    
     print("Blueprints registered successfully:")
-    print(f"  - API routes: /api/*")
-    print(f"  - UI routes: /, /workflows")
-    print(f"  - Files routes: /files/*")
+    print(f"  - UI routes: /, /workflows, /files/*")
+    print(f"  - API routes: /api/* (workflows, tools, plugins, system, files)")
 
 
-# Export registration function and blueprints
+# Export registration function and shared utilities for backward compatibility
 __all__ = [
     'register_blueprints',
-    'api_blueprint', 
-    'ui_blueprint',
-    'files_blueprint'
+    'generators'  # Export for main.py compatibility
 ]
