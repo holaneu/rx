@@ -7,7 +7,7 @@ from ._core import prompt, render_prompt_with_context
 # AUTO-GENERATED-IMPORTS-END
 # --- END OF AUTO GENERATED ---
 
-# Load plugins using simplified system
-from app.utils.plugins_manager import PluginsManager
+# Load plugins using simplified system from new core structure
+from app.core import PluginsManager
 plugins_manager = PluginsManager()
 plugins_manager.load_plugins_for_type("prompts")

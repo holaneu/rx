@@ -7,7 +7,7 @@ def snapshot_registries(task_id):
     try:
         wf = Workflow(task_id=task_id)
         
-        from app.utils.registries import WORKFLOWS_REGISTRY, ASSISTANTS_REGISTRY, TOOLS_REGISTRY, PROMPTS_REGISTRY
+        from app.core import WORKFLOWS_REGISTRY, ASSISTANTS_REGISTRY, TOOLS_REGISTRY, PROMPTS_REGISTRY
         import json
         from plugins.tools.m_included import save_to_file, user_data_files_path
 
