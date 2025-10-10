@@ -1,6 +1,6 @@
 # RX
 
-**current version**: 0.2.1
+**current version**: 2.5.0
 
 RX1 is a lightweight, fully independent workflow automation app designed to run locally or on your own hosting—no reliance on Big Tech or hyperscalers. Everything you need is built in or easily extensible by adding your own code (functions, prompts), including its own private file storage system, so your ideas, tasks, and data remain completely under your control. While RX1 can connect to third-party tools, databases, AI providers, etc., it also works 100% offline for maximum privacy. At its core, RX1 embraces simplicity by returning to the roots: plain text files. Store your knowledge, code, questions, and even entire personal databases (using the JSON-based PerDB) in plain text. With extensible workflows, built-in tools, and optional AI assistants, RX1 brings together automation, creativity, and independence—all in one place.
 
