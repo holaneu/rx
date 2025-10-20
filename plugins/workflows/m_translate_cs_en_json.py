@@ -9,19 +9,27 @@ def translate_cs_en_json(input, task_id, model="openai/gpt-4.1"):
 
         from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
         from plugins.prompts.m_translate_cs_en_json2 import translate_cs_en_json2
+        from plugins.prompts.m_correct_grammar import correct_grammar
         import json
 
         yield wf.stream_msg(msgTitle="Workflow Started", msgBody=f"Model: {model}")
 
         ai_data = fetch_llm(input=translate_cs_en_json2(input=input), model_name=model, structured_output=True).get("data", {}).get("content", "")
         
-        yield wf.stream_msg(msgTitle="LLM: Translation 1", msgBody=ai_data)
+        yield wf.stream_msg(msgTitle="LLM: Translation", msgBody=ai_data)
 
         ai_data_parsed = json.loads(ai_data)
         if not isinstance(ai_data_parsed, dict):
-            raise Exception("invalid JSON structure")
+            raise Exception("invalid JSON structure")        
 
-        ai_data_readable = json.dumps(ai_data_parsed, indent=2, ensure_ascii=False)
+        translated_text_corrected = fetch_llm(input=correct_grammar(input=ai_data_parsed.get("en", None).strip()), model_name=model).get("data", {}).get("content", "")        
+
+        ai_data_corrected = ai_data_parsed.copy()
+        ai_data_corrected["en"] = translated_text_corrected
+
+        ai_data_readable = json.dumps(ai_data_corrected, indent=2, ensure_ascii=False)
+        
+        yield wf.stream_msg(msgTitle="LLM: Translation (corrected grammar)", msgBody=ai_data_readable)
 
         file_name = "vocabulary_json.md"
 

@@ -7,14 +7,21 @@ def summarize_task(input, task_id, model=None):
         wf = Workflow(task_id=task_id)
 
         from plugins.tools.m_included import save_to_file, user_data_files_path, fetch_llm
-        from plugins.prompts.m_summarize_task import summarize_task
+        from plugins.prompts.m_summarize_task import summarize_task as summarize_task_prompt
         import json
         
-        entry = fetch_llm(input=summarize_task(input=input.strip()), model_name=model, structured_output=True).get("data", {}).get("content", "")
+        # Get the prompt input
+        prompt_input = summarize_task_prompt(input=input.strip())
+        
+        # Fetch LLM response
+        llm_response = fetch_llm(input=prompt_input, model_name=model, structured_output=True)
+        
+        # Extract content from response
+        entry = llm_response.get("data", {}).get("content", "")
 
         yield wf.stream_msg(msgTitle="LLM: task summary", msgBody=entry)
         
-        file_name = "journal_task_summaries.md"
+        file_name = "summarize_task.tdb.md"
         
         user_input1 = yield wf.interaction_request(
             msgTitle="Confirmation required",
@@ -33,12 +40,13 @@ def summarize_task(input, task_id, model=None):
                 entry_str = json.dumps(entry_parsed, indent=2, ensure_ascii=False)
 
                 save_file_result = save_to_file(filepath=user_data_files_path(file_name), content=entry_str, delimiter="-----", prepend=True)
-                yield wf.stream_msg(msg=save_file_result["message"])
 
-                return wf.success_response()        
+                yield wf.stream_msg(msg=save_file_result["message"])                        
         
             except json.JSONDecodeError:
                 raise Exception("failed to decode JSON")
+            
+        return wf.success_response()
     
     except Exception as e:
         return wf.error_response(error=e)
