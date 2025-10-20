@@ -1,5 +1,7 @@
 # RX
 
+**current version**: 2.5.0
+
 RX1 is a lightweight, fully independent workflow automation app designed to run locally or on your own hosting—no reliance on Big Tech or hyperscalers. Everything you need is built in or easily extensible by adding your own code (functions, prompts), including its own private file storage system, so your ideas, tasks, and data remain completely under your control. While RX1 can connect to third-party tools, databases, AI providers, etc., it also works 100% offline for maximum privacy. At its core, RX1 embraces simplicity by returning to the roots: plain text files. Store your knowledge, code, questions, and even entire personal databases (using the JSON-based PerDB) in plain text. With extensible workflows, built-in tools, and optional AI assistants, RX1 brings together automation, creativity, and independence—all in one place.
 
 
@@ -8,7 +10,6 @@ RX1 is a lightweight, fully independent workflow automation app designed to run 
 I’m seeking collaborators to help bring the RX1 open-source project to a production-ready release! If you’re passionate about workflow automation, AI integration, or building extensible Python applications, I’d love to hear from you.
 
 Whether you’re interested in coding, testing, documentation, UI/UX, sharing ideas, or managing GitHub projects, your help is welcome. Please review the Goals section and let us know if you’d like to join or contribute!
-
 
 ## Overview
 The main concept of the app and its logic includes:  
@@ -149,3 +150,4 @@ def translation_cs_en_basic_custom(task_id, input, model=None):
     except Exception as e:
         return wf.error_response(error=e)
 ```
+
