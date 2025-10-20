@@ -37,7 +37,7 @@ def summarize_task(*, input: str):
     "summary": "Kód, který převede slovník s údaji o osobě na JSON řetězec a zobrazí ho.",
     "procedure": [
         "Načíst knihovnu pro práci s JSON formátem (import json).",
-        "Vytvořit slovník s informacemi o osobě, jako je jméno a věk (data = {{...}}).",
+        "Vytvořit slovník s informacemi o osobě, jako je jméno a věk (data = {\"name\": \"Alice\", \"age\": 30}).",
         "Převést slovník na textový formát JSON (json.dumps()).",
         "Vypsat výsledný JSON řetězec do konzole (print())."
     ],
